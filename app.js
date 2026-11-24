@@ -155,7 +155,8 @@
   }
 
   // ---------- Girar a caixa em 3D ----------
-  const rot = { ry: -18, rx: 6 };
+  // No celular a caixa começa quase de frente, para caber inteira na tela
+  const rot = innerWidth < 760 ? { ry: -6, rx: 3 } : { ry: -18, rx: 6 };
   let spinAnim = 0;
   const applyRot = () => {
     const r = $('rig'); if (!r) return;

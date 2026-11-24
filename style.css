@@ -650,7 +650,9 @@ body::after {
   header { flex-wrap: wrap; gap: 10px; }
   .search { order: 1; flex-basis: 100%; max-width: none; }
   #btn-logout { margin-left: auto; }
-  .boombox { --d: 9em; font-size: min(16px, calc((100vw - 28px) / 30)); width: 30em; margin-top: 9em; }
+  .boombox { --d: 9em; font-size: min(16px, calc((100vw - 64px) / 30)); width: 30em; margin-top: 9em; }
+  .rig { transform: rotateX(3deg) rotateY(-6deg); }
+  .search input { font-size: 16px; } /* 16px evita o zoom automático do iPhone ao tocar na busca */
   .body { padding: 3em 1.2em 1.4em; }
   .top { grid-template-columns: repeat(4, 1fr); row-gap: 1.6em; grid-template-areas: "dial dial dial dial" "vol bal tone tune"; margin-top: 1.8em; }
   .mid { grid-template-columns: 1fr; margin-top: 1.6em; }
