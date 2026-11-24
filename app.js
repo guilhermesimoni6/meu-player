@@ -323,7 +323,12 @@
       const d = await api('/me/player');
       if (d?.device) deviceId = d.device.id;
       if (!d || !d.item) {
-        setStatus(d ? 'Nada tocando em ' + d.device.name + '. Solte uma fita no toca-fitas.' : 'Nenhum aparelho ativo. Abra o Spotify no computador, no Raspberry Pi ou na caixa de som.');
+        if (d) { setStatus(''); return; } // aparelho ativo, nada tocando: nada a avisar
+        // Nenhum aparelho ativo: usa o primeiro que estiver disponível (o play já o ativa)
+        const dv = await api('/me/player/devices').catch(() => null);
+        const pick = dv?.devices?.[0];
+        if (pick) { deviceId = pick.id; setStatus(''); }
+        else { deviceId = null; setStatus('Abra o Spotify em um aparelho para ouvir.', true); }
         return;
       }
       const t = d.item;
