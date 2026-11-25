@@ -327,7 +327,7 @@
       const data = await api('/search?type=track,playlist&limit=10&q=' + encodeURIComponent(q));
       const items = (data?.tracks?.items || []).filter(Boolean);
       const lists = (data?.playlists?.items || []).filter(Boolean);
-      box.innerHTML = ''; box.classList.remove('stack');
+      box.innerHTML = ''; box.classList.remove('stack', 'rack');
       box.classList.add('shelf');
       if (!items.length && !lists.length) {
         const p = document.createElement('p');
@@ -395,8 +395,6 @@
     btn.setAttribute('aria-expanded', String(on));
     btn.title = on ? 'Guardar as fitas' : 'Abrir as fitas';
     if (!on) return;
-    // as fitas foram posicionadas com a estante escondida: reajusta o leque
-    [$('lib-list'), $('results')].forEach((b) => { if (b._cards) setIdx(b, b._idx); });
     if (scroll) shelf.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
@@ -419,73 +417,41 @@
     return row;
   }
 
-  // Fita da prateleira (uma por playlist)
-  // ---------- Pilha de fitas em perspectiva (estilo "coverflow") ----------
-  function setIdx(box, i) {
-    const cards = box._cards || [];
-    if (!cards.length) return;
-    i = Math.max(0, Math.min(cards.length - 1, i));
-    box._idx = i;
-    const w = cards[0].offsetWidth || 220;
-    cards.forEach((c, k) => {
-      const o = k - i, a = Math.abs(o), sg = Math.sign(o);
-      c.dataset.i = k;
-      if (a > 5) { c.style.visibility = 'hidden'; c.style.pointerEvents = 'none'; c.style.opacity = '0'; return; }
-      c.style.visibility = ''; c.style.pointerEvents = '';
-      c.style.opacity = a <= 3 ? '1' : String(Math.max(0.15, 1 - (a - 3) * 0.4));
-      c.style.filter = a ? `brightness(${(1 - a * 0.13).toFixed(2)})` : '';
-      c.style.zIndex = String(100 - a);
-      c.style.transform = `translateX(${o === 0 ? 0 : sg * (w * 0.68 + (a - 1) * w * 0.24)}px) translateZ(${-a * 80}px) rotateY(${-sg * 50}deg)`;
-    });
-    const n = box.querySelector('.stack-count');
-    if (n) n.textContent = (i + 1) + ' / ' + cards.length;
-  }
-  function arrangeStack(box, idx = 0) {
+  // ---------- Estante de lombadas ----------
+  // As fitas ficam em pé, lado a lado, mostrando só a lombada. Passar o mouse levanta a fita
+  // e mostra a capa e o nome na barra de baixo.
+  function arrangeStack(box) {
     const cards = [...box.querySelectorAll(':scope > .cas')];
-    if (!cards.length) { box.classList.remove('stack'); return; }
-    box.classList.add('stack'); box._cards = cards;
-    if (!box.querySelector('.stack-nav')) {
-      [['prev', '‹', -1, 'Fita anterior'], ['next', '›', 1, 'Próxima fita']].forEach(([cls, txt, d, label]) => {
-        const b = document.createElement('button');
-        b.type = 'button'; b.className = 'stack-nav ' + cls; b.textContent = txt; b.setAttribute('aria-label', label);
-        b.onclick = () => setIdx(box, box._idx + d); box.append(b);
-      });
-      const n = document.createElement('span'); n.className = 'stack-count'; box.append(n);
-    }
-    if (!box._wired) {
-      box._wired = true; box.tabIndex = 0; box.setAttribute('aria-label', 'Pilha de fitas. Use as setas para folhear.');
-      box.addEventListener('pointerdown', (e) => {
-        if (e.button > 0 || e.target.closest('.stack-nav')) return;
-        const st = { x: e.clientX, i: box._idx, moved: false };
-        const mv = (ev) => {
-          if (document.body.classList.contains('is-dragging')) return;
-          const dx = ev.clientX - st.x;
-          if (Math.abs(dx) > 8) st.moved = true;
-          if (st.moved) setIdx(box, st.i - Math.round(dx / 60));
-        };
-        const up = () => {
-          document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up);
-          if (st.moved) { box._moved = true; setTimeout(() => { box._moved = false; }, 80); }
-        };
-        document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
-      });
-      let lastWheel = 0;
-      box.addEventListener('wheel', (e) => {
-        if (!(Math.abs(e.deltaX) > Math.abs(e.deltaY) || e.shiftKey)) return; // rolagem vertical continua rolando a página
-        e.preventDefault();
-        if (Date.now() - lastWheel < 110) return;
-        lastWheel = Date.now(); setIdx(box, box._idx + Math.sign(e.deltaX || e.deltaY));
-      }, { passive: false });
-      box.addEventListener('keydown', (e) => {
-        const k = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
-        if (k) { e.preventDefault(); e.stopPropagation(); setIdx(box, box._idx + k); }
-        else if (e.key === 'Home') { e.preventDefault(); setIdx(box, 0); }
-        else if (e.key === 'End') { e.preventDefault(); setIdx(box, 1e9); }
-      });
-    }
-    setIdx(box, idx);
+    box.querySelector(':scope > .rack-info')?.remove();
+    box._cards = cards;
+    if (!cards.length) { box.classList.remove('rack'); return; }
+    box.classList.add('rack');
+    const info = document.createElement('div'); info.className = 'rack-info'; box.append(info);
+    const hint = () => {
+      info.innerHTML = '';
+      const p = document.createElement('p'); p.className = 'rack-hint';
+      p.textContent = matchMedia('(hover: none)').matches
+        ? 'Toque numa fita para abrir. Segure e arraste até o toca-fitas.'
+        : 'Passe o mouse numa fita para ver o nome. Clique para abrir ou arraste até o toca-fitas.';
+      info.append(p);
+    };
+    const show = (c) => {
+      info.innerHTML = '';
+      const src = c.querySelector('img')?.getAttribute('src');
+      if (src) { const i = document.createElement('img'); i.src = src; i.alt = ''; info.append(i); }
+      const t = document.createElement('div');
+      const b = document.createElement('b'); b.textContent = c.querySelector('b')?.textContent || '';
+      const s = document.createElement('small'); s.textContent = c.querySelector('small')?.textContent || '';
+      t.append(b, s); info.append(t);
+    };
+    const rest = () => { const p = box.querySelector('.cas.playing'); if (p) show(p); else hint(); };
+    cards.forEach((c) => {
+      c.addEventListener('pointerenter', () => show(c));
+      c.addEventListener('focus', () => show(c));
+    });
+    box.onpointerleave = rest;
+    rest();
   }
-
   // Arrastar uma fita até o toca-fitas (mouse, caneta ou toque com o dedo pressionado)
   function makeDraggable(card, onDrop) {
     card.addEventListener('dragstart', (e) => e.preventDefault());
@@ -501,10 +467,12 @@
       };
       const begin = () => {
         s.drag = true;
-        s.dx = card.offsetWidth / 2; s.dy = card.offsetHeight / 2;
+        const spine = Boolean(card.closest('.rack')); // da estante, a fita sai da lombada e vira um cassete inteiro
+        const cw = spine ? 200 : card.offsetWidth, ch = spine ? 127 : card.offsetHeight;
+        s.dx = cw / 2; s.dy = ch / 2;
         const c = card.cloneNode(true); c.classList.add('flying', 'carried');
         c.style.cssText = '';
-        Object.assign(c.style, { position: 'fixed', width: card.offsetWidth + 'px', height: card.offsetHeight + 'px', margin: 0 });
+        Object.assign(c.style, { position: 'fixed', width: cw + 'px', height: ch + 'px', margin: 0, fontSize: spine ? '13px' : '' });
         document.body.append(c); s.clone = c; card.classList.add('lifted');
         document.body.classList.add('is-dragging');
         document.addEventListener('touchmove', noScroll, { passive: false });
@@ -523,9 +491,6 @@
           const far = Math.hypot(s.lx - s.x0, s.ly - s.y0);
           if (s.touch) { if (far > 10) cleanup(); return; } // o dedo andou antes: é rolagem
           if (far > 8) {
-            // Na pilha, arrastar para os lados folheia as fitas; para cima/baixo, pega a fita
-            const adx = Math.abs(s.lx - s.x0), ady = Math.abs(s.ly - s.y0);
-            if (card.parentElement?.classList.contains('stack') && adx > ady * 1.2) { s.nav = true; return; }
             begin();
           }
         } else place();
@@ -570,11 +535,6 @@
     c.append(cl, w);
     c.onclick = () => {
       if (c._dragged) return;
-      const st = c.parentElement;
-      if (st?.classList.contains('stack')) {
-        if (st._moved) return;
-        if (Number(c.dataset.i) !== st._idx) { setIdx(st, Number(c.dataset.i)); return; } // fita do lado vem para a frente
-      }
       insertTape(name, c); onclick();
     };
     // Soltar no toca-fitas toca a fita (a playlist inteira, ou só a música)
@@ -593,7 +553,9 @@
     if (reduce) return;
     const fly = () => {
       if (!from) { slideIn(); return; }
-      const a = from.getBoundingClientRect(), b = tape.getBoundingClientRect();
+      let a = from.getBoundingClientRect(); const b = tape.getBoundingClientRect();
+      const spine = Boolean(from.closest('.rack'));
+      if (spine) a = { left: a.left + a.width / 2 - 100, top: a.top + a.height / 2 - 63, width: 200, height: 127 };
       const visible = b.top >= 0 && b.bottom <= innerHeight && b.width > 0;
       if (!from || !visible || a.width === 0) {
         tape.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -601,7 +563,7 @@
         return;
       }
       const c = from.cloneNode(true); c.classList.add('flying'); c.style.cssText = '';
-      Object.assign(c.style, { position: 'fixed', left: a.left + 'px', top: a.top + 'px', width: a.width + 'px', height: a.height + 'px', margin: 0, transition: 'all .5s cubic-bezier(.4,.1,.2,1)' });
+      Object.assign(c.style, { position: 'fixed', left: a.left + 'px', top: a.top + 'px', width: a.width + 'px', height: a.height + 'px', margin: 0, fontSize: spine ? '13px' : '', transition: 'all .5s cubic-bezier(.4,.1,.2,1)' });
       document.body.append(c);
       tape.style.opacity = '0';
       requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -636,7 +598,7 @@
 
   function libMessage(text, withAuth) {
     const list = $('lib-list');
-    list.innerHTML = ''; list.classList.remove('stack');
+    list.innerHTML = ''; list.classList.remove('stack', 'rack');
     const p = document.createElement('p'); p.className = 'no-results'; p.textContent = text;
     list.append(p);
     if (withAuth) {
@@ -654,7 +616,7 @@
     try {
       const data = await api('/me/playlists?limit=50');
       const items = (data?.items || []).filter(Boolean);
-      const list = $('lib-list'); list.innerHTML = ''; list.classList.remove('stack');
+      const list = $('lib-list'); list.innerHTML = ''; list.classList.remove('stack', 'rack');
       list.append(casCard({ name: 'Músicas curtidas', sub: 'Sua biblioteca', onclick: openLiked, onDrop: playLiked }));
       items.forEach((p) => {
         const total = p.tracks?.total ?? p.items?.total;
@@ -684,7 +646,7 @@
     .filter((t) => t && t.uri && t.type !== 'episode');
 
   function renderTracks(tracks, ctx) {
-    const list = $('lib-list'); list.innerHTML = ''; list.classList.remove('stack');
+    const list = $('lib-list'); list.innerHTML = ''; list.classList.remove('stack', 'rack');
     if (!tracks.length) { libMessage('Esta lista não tem faixas para tocar.'); return; }
     const uris = tracks.map((t) => t.uri).slice(0, 100);
     tracks.forEach((t) => {

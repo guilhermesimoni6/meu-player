@@ -174,32 +174,50 @@ header { display: flex; align-items: center; gap: 16px; margin-bottom: clamp(18p
 .cas { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: grab; }
 .cas.lifted { opacity: .25; }
 
-/* Pilha em perspectiva: a fita da vez fica na frente, as outras abrem em leque */
-.shelf.stack, #results.stack {
-  display: block; position: relative; height: 400px; max-height: none; padding: 0; overflow: hidden;
-  perspective: 1000px; perspective-origin: 50% 46%; cursor: grab; touch-action: pan-y; outline-offset: -2px;
-  background: radial-gradient(55% 75% at 50% 42%, rgb(255 255 255 / 11%), transparent 72%);
+/* Estante de lombadas: as fitas em pé, lado a lado, sobre tábuas de madeira */
+.shelf.rack, #results.rack {
+  --sh: 190px; --gap: 30px;
+  display: flex; flex-wrap: wrap; align-items: flex-end; align-content: flex-start; gap: var(--gap) 5px;
+  max-height: 64dvh; padding: 14px 18px 0; overflow: auto; background-origin: padding-box; background-attachment: local;
+  background-image: linear-gradient(to bottom, #b07a4c 0 2px, #8c5b35 2px 9px, #55351e 9px 14px, transparent 14px);
+  background-size: 100% calc(var(--sh) + var(--gap)); background-repeat: repeat-y; background-position: 0 calc(14px + var(--sh));
 }
-/* A tábua onde as fitas ficam em pé */
-.shelf.stack::before, #results.stack::before {
-  content: ""; position: absolute; left: 3%; right: 3%; top: 289px; height: 14px; border-radius: 7px; z-index: 0; pointer-events: none;
-  background: repeating-linear-gradient(90deg, rgb(40 18 6 / 18%) 0 2px, transparent 2px 46px), linear-gradient(#92613a, #55351e 70%, #3d2514);
-  box-shadow: 0 10px 16px #0009, inset 0 1px 0 rgb(255 255 255 / 32%);
+.rack .cas {
+  flex: none; width: 34px; height: var(--sh); aspect-ratio: auto; border-radius: 4px 4px 2px 2px; font-size: 10px;
+  clip-path: inset(var(--cut, 0px) 0 0 0 round 4px 4px 2px 2px);
+  transition: transform .18s cubic-bezier(.3, .8, .3, 1), filter .18s;
 }
-.stack .cas {
-  position: absolute; left: 50%; top: 46%; width: 340px; margin: -108px 0 0 -170px; font-size: 13.6px;
-  transition: transform .5s cubic-bezier(.3, .8, .3, 1), opacity .35s;
-  -webkit-box-reflect: below 3px linear-gradient(transparent 66%, rgb(255 255 255 / 13%));
+.rack .cas:nth-child(4n+2) { width: 30px; --cut: 7px; }
+.rack .cas:nth-child(4n+3) { width: 38px; --cut: 3px; }
+.rack .cas:nth-child(4n) { width: 32px; --cut: 12px; }
+.rack .cas:hover, .rack .cas:focus-visible { transform: translateY(-20px); filter: brightness(1.12); box-shadow: inset 0 1px 0 rgb(255 255 255 / 38%), inset 0 -.35em 0 rgb(0 0 0 / 40%); }
+.rack .cas:active { transform: translateY(-12px); }
+.rack .cas.playing { transform: translateY(-12px); box-shadow: 0 0 0 2px #00d2ff, inset 0 -.35em 0 rgb(0 0 0 / 40%); clip-path: none; }
+.rack .cas::before { /* faixas coloridas no topo da lombada */
+  content: ""; position: absolute; inset: auto; left: 4px; right: 4px; top: 5px; height: 5px; border-radius: 0;
+  background: linear-gradient(90deg, var(--k1) 0 33%, var(--k2) 33% 66%, var(--k3) 66%);
 }
-.stack .cas:hover, .stack .cas:focus-visible { filter: brightness(1.1); }
-.stack-nav {
-  position: absolute; top: 46%; z-index: 200; width: 42px; height: 42px; margin-top: -21px; padding: 0; border: 1px solid var(--line); border-radius: 50%;
-  background: rgb(18 10 36 / 70%); color: #fff; font: 700 1.6rem/1 var(--mono); display: grid; place-items: center; backdrop-filter: blur(8px);
+.rack .cas::after, .rack .cas .cw, .rack .cas .cl::before, .rack .cas .ct small { display: none; }
+.rack .cas .cl {
+  left: 4px; right: 4px; top: 14px; bottom: 40px; height: auto; padding: 0; display: block; overflow: visible; border-radius: 2px;
 }
-.stack-nav:hover { background: rgb(255 255 255 / 20%); }
-.stack-nav.prev { left: 8px; } .stack-nav.next { right: 8px; }
-.stack-count { position: absolute; left: 0; right: 0; bottom: 10px; z-index: 200; text-align: center; font: 700 .78rem var(--mono); color: var(--muted); pointer-events: none; }
-body.is-dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
+.rack .cas .cl img, .rack .cas .cl .ph {
+  position: absolute; left: 50%; bottom: -33px; width: 24px; height: 24px; transform: translateX(-50%); border-radius: 3px;
+}
+.rack .cas .ct { display: block; height: 100%; padding: 6px 0; overflow: hidden; }
+.rack .cas .ct b {
+  display: block; height: 100%; margin: 0 auto; writing-mode: vertical-rl; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 1.4em; line-height: 1.7; transform: none; -webkit-line-clamp: unset;
+}
+.rack-info {
+  flex: 0 0 100%; position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 14px; min-height: 84px;
+  margin: 0 -18px; padding: 10px 18px; background: rgb(18 10 36 / 94%); border-top: 1px solid rgb(255 255 255 / 14%);
+}
+.rack-info img { width: 60px; height: 60px; flex: none; border-radius: 6px; object-fit: cover; box-shadow: 0 0 0 2px rgb(255 255 255 / 25%); }
+.rack-info div { min-width: 0; }
+.rack-info b { display: block; font: 400 1.35rem/1.15 var(--hand); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rack-info small { display: block; margin-top: 3px; font: .78rem var(--mono); color: var(--muted); }
+.rack-hint { margin: 0; font: .82rem var(--mono); color: var(--muted); }body.is-dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
 
 /* A fita: casca de plástico esfumaçada, etiqueta com a capa, janela com os carretéis */
 .cas {
@@ -328,9 +346,14 @@ body.is-dragging .boombox .door { pointer-events: auto; }
   #now { min-height: calc(100dvh - 300px); }
   .search input { font-size: 16px; } /* 16px evita o zoom automático do iPhone ao tocar na busca */
   .lib-list.shelf { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .shelf.stack, #results.stack { height: 300px; }
-  .stack .cas { width: 250px; margin: -79px 0 0 -125px; font-size: 10px; }
-  .shelf.stack::before, #results.stack::before { top: 215px; height: 11px; }
+  .shelf.rack, #results.rack { --sh: 160px; --gap: 28px; padding: 12px 12px 0; }
+  .rack .cas { width: 30px; }
+  .rack .cas:nth-child(4n+2) { width: 27px; }
+  .rack .cas:nth-child(4n+3) { width: 33px; }
+  .rack .cas:nth-child(4n) { width: 29px; }
+  .rack .cas .cl { bottom: 36px; }
+  .rack .cas .cl img, .rack .cas .cl .ph { bottom: -30px; width: 22px; height: 22px; }
+  .rack-info { margin: 0 -12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   :root { transition: none; }
