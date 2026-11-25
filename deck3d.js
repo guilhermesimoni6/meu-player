@@ -274,8 +274,8 @@
     function makeKnob(name, x, r, h, deco) {
       const g = new T.Group(); g.position.set(x, DIAL_Y, ZF + 0.46);
       // decalque de marcas na placa
-      const tk = new T.Mesh(new T.PlaneGeometry((r + 1.7) * 2, (r + 1.7) * 2), new T.MeshBasicMaterial({ map: tickTex, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false }));
-      tk.position.set(x, DIAL_Y, ZF + 0.5); deck.add(tk);
+      const tk = new T.Mesh(new T.PlaneGeometry((r + 1.2) * 2, (r + 1.2) * 2), new T.MeshBasicMaterial({ map: tickTex, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false }));
+      tk.position.set(x, DIAL_Y, ZF + 0.485); deck.add(tk);
       // base com sombra
       const rot = new T.Group(); g.add(rot);
       const bodyG = new T.CylinderGeometry(r, r, h, 96, 1, true);
@@ -298,10 +298,10 @@
       tag(g, { type: 'knob', name });
       return k;
     }
-    makeKnob('vol', -26.4, 2.9, 2.2, false);
-    makeKnob('bal', -19.2, 2.1, 1.7, true);
-    makeKnob('tone', 19.2, 2.1, 1.7, true);
-    makeKnob('tune', 26.4, 3.3, 2.4, false);
+    makeKnob('vol', -24.2, 2.9, 2.2, false);
+    makeKnob('bal', -16.9, 2.1, 1.7, true);
+    makeKnob('tone', 16.9, 2.1, 1.7, true);
+    makeKnob('tune', 24.2, 3.3, 2.4, false);
 
     // ---------- Alto-falantes
     const grilleTex = (() => {
@@ -599,17 +599,31 @@
       if (!w || !h) return;
       const dpr = Math.min(window.devicePixelRatio || 1, quality === 'low' ? 1 : 2);
       renderer.setPixelRatio(dpr); renderer.setSize(w, h, false);
-      camera.aspect = w / h; camera.updateProjectionMatrix();
+      camera.aspect = w / h; camera.updateProjectionMatrix(); dist = 0;
       const tan = Math.tan(FOV / 2);
       camDist = Math.max((W * 1.1 / 2) / (tan * camera.aspect), (51 / 2) / tan);
       dirty = true;
     }
     let camDist = 100, quality = 'high';
+    // Afasta a câmera quando a caixa girada ou inclinada passaria da borda do quadro
+    const fitPts = [];
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (const y of [FLOOR, TOP + 6.6]) fitPts.push(new T.Vector3(sx * (W / 2), y, sz * (D / 2)));
+    const tmp = new T.Vector3();
+    let dist = 0;
     function placeCamera() {
       const p = view.rx * DEG;
-      camera.position.set(0, target.y + Math.sin(p) * camDist, Math.cos(p) * camDist);
-      camera.lookAt(target);
-      deck.rotation.y = view.ry * DEG;
+      deck.rotation.y = view.ry * DEG; deck.updateMatrixWorld(true);
+      const pos = (d) => { camera.position.set(0, target.y + Math.sin(p) * d, Math.cos(p) * d); camera.lookAt(target); camera.updateMatrixWorld(true); };
+      let want = camDist;
+      for (let i = 0; i < 3; i++) {
+        pos(want);
+        let m = 0;
+        for (const v of fitPts) { tmp.copy(v); deck.localToWorld(tmp); tmp.project(camera); m = Math.max(m, Math.abs(tmp.x), Math.abs(tmp.y)); }
+        if (m > 0.97) want *= m / 0.97; else break;
+      }
+      if (!dist) dist = want;
+      if (Math.abs(want - dist) > 0.05) { dist += (want - dist) * 0.3; dirty = true; } else dist = want;
+      pos(dist);
     }
     api.resize = fit;
     api.facingFront = () => { const n = ((view.ry % 360) + 360) % 360; return (n < 40 || n > 320); };
