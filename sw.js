@@ -1,7 +1,7 @@
 // Guarda a casca do app para abrir rápido e funcionar como app instalado.
 // A API e o login do Spotify nunca passam pelo cache.
-const CACHE = 'meu-player-v1';
-const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+const CACHE = 'meu-player-v2';
+const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'deck3d.js', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

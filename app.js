@@ -154,80 +154,9 @@
     return { set, get: () => v };
   }
 
-  // ---------- Girar a caixa em 3D ----------
-  // No celular a caixa começa quase de frente, para caber inteira na tela
-  const rot = innerWidth < 760 ? { ry: -6, rx: 3 } : { ry: -18, rx: 6 };
-  let spinAnim = 0;
-  const applyRot = () => {
-    const r = $('rig'); if (!r) return;
-    r.style.transform = `rotateX(${rot.rx}deg) rotateY(${rot.ry}deg)`;
-    // De perfil, o relevo das peças vai se achatando no painel (sem sumir), para não virar riscos
-    const c = Math.abs(Math.cos(rot.ry * Math.PI / 180));
-    r.parentElement.style.setProperty('--lift', Math.min(1, c * 2.2).toFixed(3));
-  };
-  const facingFront = () => { const n = ((rot.ry % 360) + 360) % 360; return (n < 40 || n > 320) && Math.abs(rot.rx) < 30; };
-  function rotateTo(ry, rx, ms = 600) {
-    cancelAnimationFrame(spinAnim);
-    const a = { ry: rot.ry, rx: rot.rx }, t0 = performance.now();
-    const ease = (t) => 1 - Math.pow(1 - t, 3);
-    const step = (now) => {
-      const t = Math.min(1, (now - t0) / ms), k = ease(t);
-      rot.ry = a.ry + (ry - a.ry) * k; rot.rx = a.rx + (rx - a.rx) * k; applyRot();
-      if (t < 1) spinAnim = requestAnimationFrame(step);
-    };
-    spinAnim = requestAnimationFrame(step);
-  }
-  const frontTarget = () => Math.round(rot.ry / 360) * 360;
-  function setupSpin() {
-    const box = $('boombox');
-    if (!box) return;
-    // Alça em 3D: várias fatias empilhadas dão espessura
-    const h = $('handle3d');
-    for (let i = -14; i <= 14; i++) {
-      const s = document.createElement('div'); s.className = 'hs';
-      s.style.transform = `translateZ(${i * 0.115}em)`;
-      s.innerHTML = '<i></i><i></i><i></i>';
-      h.append(s);
-    }
-    // Botões giratórios: camadas empilhadas formam a lateral do cilindro
-    document.querySelectorAll('.knob').forEach((k) => {
-      for (let i = 1; i <= 7; i++) {
-        const s = document.createElement('s'); s.style.transform = `translateZ(calc(${-i * 0.24}em * var(--lift)))`; k.append(s);
-      }
-    });
-    applyRot();
-    let drag = null, vy = 0, vx = 0, raf = 0;
-    const inertia = () => {
-      if (drag) return;
-      rot.ry += vy; rot.rx = Math.max(-70, Math.min(70, rot.rx + vx));
-      vy *= 0.94; vx *= 0.9; applyRot();
-      if (Math.abs(vy) > 0.03 || Math.abs(vx) > 0.03) raf = requestAnimationFrame(inertia);
-    };
-    box.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('button, .knob, input, a')) return;
-      cancelAnimationFrame(spinAnim); cancelAnimationFrame(raf);
-      drag = { x: e.clientX, y: e.clientY, touch: e.pointerType === 'touch' };
-      vy = vx = 0; box.setPointerCapture(e.pointerId); box.classList.add('dragging');
-    });
-    box.addEventListener('pointermove', (e) => {
-      if (!drag) return;
-      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-      drag.x = e.clientX; drag.y = e.clientY;
-      vy = dx * 0.45; rot.ry += vy;
-      if (!drag.touch) { vx = -dy * 0.3; rot.rx = Math.max(-70, Math.min(70, rot.rx + vx)); }
-      applyRot();
-    });
-    const up = () => { if (!drag) return; drag = null; box.classList.remove('dragging'); raf = requestAnimationFrame(inertia); };
-    box.addEventListener('pointerup', up); box.addEventListener('pointercancel', up);
-    box.addEventListener('dblclick', (e) => { if (!e.target.closest('button, .knob')) rotateTo(frontTarget(), 0); });
-    document.querySelectorAll('[data-spin]').forEach((b) => {
-      b.onclick = () => {
-        cancelAnimationFrame(raf);
-        const v = b.dataset.spin;
-        if (v === 'front') rotateTo(frontTarget(), 0); else rotateTo(rot.ry + Number(v), rot.rx);
-      };
-    });
-  }
+  // ---------- Girar a caixa em 3D (o desenho e o giro ficam no deck3d.js) ----------
+  const facingFront = () => window.Deck3D?.facingFront() ?? true;
+  const rotateFront = (ms) => window.Deck3D?.rotateFront(ms);
 
   function markPlaying() {
     document.querySelectorAll('#results .cas, #lib-list .cas').forEach((r) => {
@@ -678,7 +607,7 @@
       setTimeout(() => { c.remove(); tape.style.opacity = ''; slideIn(); }, 500);
     };
     // A fita só entra se a frente do toca-fitas estiver virada para você
-    if (!facingFront()) { rotateTo(frontTarget(), 0, 500); setTimeout(fly, 540); } else fly();
+    if (!facingFront()) { rotateFront(500); setTimeout(fly, 540); } else fly();
   }
 
   // Ejetar: a fita sai do compartimento e a prateleira volta
@@ -868,7 +797,6 @@
     $('btn-pause').onclick = () => player?.pause();
     $('btn-eject').onclick = ejectTape;
     $('btn-prev').onclick = () => player?.previousTrack();
-    setupSpin();
     volKnob = makeKnob($('knob-vol'), {
       value: Number($('vol').value) / 100,
       onInput: (v) => { const n = Math.round(v * 100); if (n > 0) lastVolume = n; setVolumeUi(n); },

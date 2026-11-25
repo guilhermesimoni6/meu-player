@@ -66,122 +66,44 @@
 
   <section id="now" data-playing="false">
     <div class="boombox" id="boombox">
-     <div class="rig" id="rig">
-      <div class="handle3d" id="handle3d" aria-hidden="true"></div>
-
-      <div class="body face-front">
-        <!-- Chaves no topo -->
-        <div class="switches">
-          <div class="sw">
-            <button id="btn-shuffle" type="button" aria-label="Aleatório" title="Aleatório" aria-pressed="false"></button>
-          </div>
-          <div class="sw">
-            <button id="btn-repeat" type="button" aria-label="Repetir" title="Repetir" aria-pressed="false" data-mode="off"></button>
-          </div>
-        </div>
-
-        <!-- Botões giratórios e o painel de sintonia -->
-        <div class="top">
-          <div class="kw a-vol">
-            <div class="knob" id="knob-vol" role="slider" tabindex="0" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="60"><i></i></div>
-            <span>VOLUME</span>
-          </div>
-          <div class="kw a-bal small">
-            <div class="knob" data-deco aria-hidden="true"><i></i></div>
-            <span>BALANÇO</span>
-          </div>
-
-          <div class="dial a-dial" aria-live="off">
-            <div class="dial-text">
-              <h2 id="title">Nada tocando</h2>
-              <p id="artist">Escolha uma fita</p>
-            </div>
-            <div class="scale">
-              <i class="needle" aria-hidden="true"></i>
-              <span id="t-cur">0:00</span>
-              <span id="t-dur">0:00</span>
-            </div>
-          </div>
-
-          <div class="kw a-tone small">
-            <div class="knob" data-deco aria-hidden="true"><i></i></div>
-            <span>TOM</span>
-          </div>
-          <div class="kw a-tune">
-            <div class="knob big" id="knob-tune" role="slider" tabindex="0" aria-label="Posição na faixa" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
-            <span>SINTONIA</span>
-          </div>
-        </div>
-
-        <!-- Caixas de som e compartimento da fita -->
-        <div class="mid">
-          <div class="speaker" aria-hidden="true"><i class="cone"></i></div>
-
-          <div class="center">
-            <div class="door">
-              <div class="rail" aria-hidden="true"></div>
-              <div class="rib" aria-hidden="true"></div>
-              <div class="glass">
-                <div class="tape empty" role="group" aria-label="Fita no toca-fitas">
-                  <i class="screw s1"></i><i class="screw s2"></i><i class="screw s3"></i><i class="screw s4"></i>
-                  <div class="label">
-                    <div class="stripes" aria-hidden="true"><i></i><i></i><i></i></div>
-                    <div class="label-main">
-                      <div class="artwork"><svg class="art-ph" aria-hidden="true"><use href="#i-tape"/></svg><img id="cover" alt="Capa do álbum"></div>
-                      <p id="tape-name" class="tape-name">Sem fita</p>
-                    </div>
-                  </div>
-                  <div class="reels">
-                    <button class="reel" id="reel-l" type="button" aria-label="Voltar 10 segundos" title="Voltar 10 s"><span class="spool left"></span><span class="hub"></span></button>
-                    <i class="ribbon" aria-hidden="true"></i>
-                    <button class="reel" id="reel-r" type="button" aria-label="Avançar 10 segundos" title="Avançar 10 s"><span class="spool right"></span><span class="hub"></span></button>
-                  </div>
-                  <div class="base" aria-hidden="true"></div>
-                </div>
-              </div>
-              <div class="rib" aria-hidden="true"></div>
-            </div>
-
-            <div class="keys">
-              <div class="key"><span>VOLTAR</span><button id="btn-prev" type="button" aria-label="Faixa anterior"><svg><use href="#i-prev"/></svg></button></div>
-              <div class="key"><span>AVANÇAR</span><button id="btn-next" type="button" aria-label="Próxima faixa"><svg><use href="#i-next"/></svg></button></div>
-              <div class="key"><span>EJETAR</span><button id="btn-eject" type="button" aria-label="Ejetar a fita e escolher outra"><svg><use href="#i-eject"/></svg></button></div>
-              <div class="key"><span>TOCAR</span><button id="btn-play" type="button" aria-label="Tocar" data-state="paused"><svg><use href="#i-play"/></svg></button></div>
-              <div class="key"><span>PAUSA</span><button id="btn-pause" type="button" aria-label="Pausar" data-state="off"><svg><use href="#i-pause"/></svg></button></div>
-              <div class="key"><span>MUDO</span><button id="btn-mute" type="button" aria-label="Silenciar"><svg class="ic-vol"><use href="#i-vol"/></svg><svg class="ic-mute"><use href="#i-mute"/></svg></button></div>
-            </div>
-          </div>
-
-          <div class="speaker" aria-hidden="true"><i class="cone"></i></div>
-        </div>
-      </div>
-
-      <!-- Costas, laterais, topo e fundo da caixa -->
-      <div class="face f-back" aria-hidden="true">
-        <div class="plate"><b>Meu Player</b><small>ESTÉREO · CASSETE</small></div>
-        <div class="batt"></div>
-        <div class="vents"></div>
-      </div>
-      <div class="face f-left" aria-hidden="true">
-        <i class="jack"></i><i class="jack small"></i><i class="slide"></i><b class="engrave">FONES</b>
-      </div>
-      <div class="face f-right" aria-hidden="true">
-        <i class="jack"></i><i class="lamp"></i><b class="engrave">ESTÉREO</b><i class="foot"></i>
-      </div>
-      <div class="face f-top" aria-hidden="true"></div>
-      <div class="face f-bottom" aria-hidden="true"></div>
-     </div>
+      <!-- Compartimento da fita: só marca a posição na tela (o desenho é feito em 3D) -->
+      <div class="door" aria-hidden="true"><div class="tape empty"></div></div>
     </div>
 
-    <!-- Controles reais (usados pelos botões giratórios e pelo teclado) -->
+    <!-- Controles reais: ficam escondidos e são acionados pelo toca-fitas 3D e pelo teclado -->
+    <div class="legacy">
+      <div class="switches">
+        <button id="btn-shuffle" type="button" aria-label="Aleatório" title="Aleatório" aria-pressed="false"></button>
+        <button id="btn-repeat" type="button" aria-label="Repetir" title="Repetir" aria-pressed="false" data-mode="off"></button>
+      </div>
+      <div class="knob" id="knob-vol" role="slider" tabindex="-1" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="60"><i></i></div>
+      <div class="knob big" id="knob-tune" role="slider" tabindex="-1" aria-label="Posição na faixa" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+      <div class="dial-text">
+        <h2 id="title">Nada tocando</h2>
+        <p id="artist">Escolha uma fita</p>
+        <span id="t-cur">0:00</span><span id="t-dur">0:00</span>
+      </div>
+      <p id="tape-name" class="tape-name">Sem fita</p>
+      <img id="cover" alt="Capa do álbum">
+      <button class="reel" id="reel-l" type="button" aria-label="Voltar 10 segundos" title="Voltar 10 s"></button>
+      <button class="reel" id="reel-r" type="button" aria-label="Avançar 10 segundos" title="Avançar 10 s"></button>
+      <button id="btn-prev" type="button" aria-label="Faixa anterior"><svg><use href="#i-prev"/></svg></button>
+      <button id="btn-next" type="button" aria-label="Próxima faixa"><svg><use href="#i-next"/></svg></button>
+      <button id="btn-eject" type="button" aria-label="Ejetar a fita e escolher outra"><svg><use href="#i-eject"/></svg></button>
+      <button id="btn-play" type="button" aria-label="Tocar" data-state="paused"><svg><use href="#i-play"/></svg></button>
+      <button id="btn-pause" type="button" aria-label="Pausar" data-state="off"><svg><use href="#i-pause"/></svg></button>
+      <button id="btn-mute" type="button" aria-label="Silenciar"><svg class="ic-vol"><use href="#i-vol"/></svg><svg class="ic-mute"><use href="#i-mute"/></svg></button>
+    </div>
     <input id="vol" class="sr" type="range" aria-label="Volume" min="0" max="100" value="60" tabindex="-1">
     <input id="seek" class="sr" type="range" aria-label="Posição na faixa" min="0" max="1000" value="0" tabindex="-1">
     <p id="status" role="status"></p>
   </section>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
+<script src="deck3d.js"></script>
 <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </body>
 </html>
