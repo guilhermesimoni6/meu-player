@@ -269,7 +269,7 @@ body.is-dragging { user-select: none; -webkit-user-select: none; cursor: grabbin
    o marcador do compartimento e os controles escondidos.
    ===================================================================== */
 #now { --p: 0; }
-.boombox { position: relative; width: min(100%, 1000px); aspect-ratio: 1.6 / 1; max-height: 82vh; margin: 0 auto; }
+.boombox { position: relative; width: min(100%, 1000px); aspect-ratio: 1.6 / 1; max-height: 82vh; margin: clamp(28px, 6vw, 72px) auto 0; }
 .boombox canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y; cursor: grab; outline: 0; }
 .boombox canvas.grabbing { cursor: grabbing; }
 /* Marca onde está o compartimento na tela: o deck3d.js move e redimensiona esta caixa */
