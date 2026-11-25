@@ -432,7 +432,8 @@
       c.dataset.i = k;
       if (a > 5) { c.style.visibility = 'hidden'; c.style.pointerEvents = 'none'; c.style.opacity = '0'; return; }
       c.style.visibility = ''; c.style.pointerEvents = '';
-      c.style.opacity = String(1 - a * 0.13);
+      c.style.opacity = a <= 3 ? '1' : String(Math.max(0.15, 1 - (a - 3) * 0.4));
+      c.style.filter = a ? `brightness(${(1 - a * 0.13).toFixed(2)})` : '';
       c.style.zIndex = String(100 - a);
       c.style.transform = `translateX(${o === 0 ? 0 : sg * (w * 0.68 + (a - 1) * w * 0.24)}px) translateZ(${-a * 80}px) rotateY(${-sg * 50}deg)`;
     });
@@ -559,11 +560,13 @@
     if (uri) c.dataset.uri = uri;
     const cl = document.createElement('span'); cl.className = 'cl';
     if (img) { const i = document.createElement('img'); i.src = img; i.alt = ''; cl.append(i); }
-    const t = document.createElement('span');
+    else { const ph = document.createElement('span'); ph.className = 'ph'; ph.innerHTML = '<svg aria-hidden="true"><use href="#i-note"/></svg>'; cl.append(ph); }
+    const t = document.createElement('span'); t.className = 'ct';
     const b = document.createElement('b'); b.textContent = name;
     const s = document.createElement('small'); s.textContent = sub || '';
     t.append(b, s); cl.append(t);
     const w = document.createElement('span'); w.className = 'cw'; w.setAttribute('aria-hidden', 'true');
+    w.innerHTML = '<i></i><i></i>';
     c.append(cl, w);
     c.onclick = () => {
       if (c._dragged) return;
