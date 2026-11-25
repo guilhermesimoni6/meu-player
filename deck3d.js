@@ -13,6 +13,35 @@
   const api = { facingFront: () => true, rotateFront: () => {} };
   window.Deck3D = api;
 
+  // ---------------------------------------------------------------- acabamentos (cor ou madeira)
+  const FINISHES = {
+    ameixa:   { color: 0x7c2252, css: '#7c2252', ink: '#e8dcc4', vent: '#240c26' },
+    madeira:  { wood: true, css: '#7a4a28', ink: '#f3e2c4', vent: '#24110a' },
+    preto:    { color: 0x1d1c24, css: '#1d1c24', ink: '#d9d4e6', vent: '#08070b' },
+    creme:    { color: 0xe4d8bf, css: '#e4d8bf', ink: '#4a3524', vent: '#6d5a42' },
+    petroleo: { color: 0x1f6f78, css: '#1f6f78', ink: '#e4f6f4', vent: '#0a2c31' },
+    vermelho: { color: 0xb3202a, css: '#b3202a', ink: '#ffe9dc', vent: '#3a080c' },
+  };
+  let curFinish = 'ameixa', finishHook = null;
+  try { const s = localStorage.getItem('finish'); if (s && FINISHES[s]) curFinish = s; } catch { /* sem armazenamento */ }
+  const finishMenu = $('finish-menu'), finishBtn = $('btn-finish');
+  const markFinish = () => finishMenu && finishMenu.querySelectorAll('[data-finish]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.finish === curFinish)));
+  api.setFinish = (k) => {
+    if (!FINISHES[k]) return;
+    curFinish = k;
+    try { localStorage.setItem('finish', k); } catch { /* sem armazenamento */ }
+    if (finishHook) finishHook(k);
+    markFinish();
+  };
+  if (finishBtn && finishMenu) {
+    const close = () => { finishMenu.classList.add('hidden'); finishBtn.setAttribute('aria-expanded', 'false'); };
+    finishBtn.onclick = () => { const open = finishMenu.classList.toggle('hidden') === false; finishBtn.setAttribute('aria-expanded', String(open)); };
+    finishMenu.querySelectorAll('[data-finish]').forEach((b) => { b.onclick = () => { api.setFinish(b.dataset.finish); close(); }; });
+    document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.finish')) close(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    markFinish();
+  }
+
   const ro = new ResizeObserver(() => {
     if (!inited && boombox.clientWidth > 0) {
       inited = true;
@@ -435,29 +464,65 @@
       k.itex.needsUpdate = true;
     }
 
-    // ---------- Costas, laterais e fundo
+    // ---------- Madeira (desenhada na hora) e costas/laterais que acompanham o acabamento
+    const woodCanvas = (() => {
+      const c = canvasOf(1024, 1024), g = c.getContext('2d');
+      const bg = g.createLinearGradient(0, 0, 0, 1024);
+      ['#7b4a27', '#8c5731', '#6f4123', '#86532d', '#7b4a27'].forEach((col, i, a) => bg.addColorStop(i / (a.length - 1), col));
+      g.fillStyle = bg; g.fillRect(0, 0, 1024, 1024);
+      for (let i = 0; i < 340; i++) {
+        const y0 = Math.random() * 1024, amp = 2 + Math.random() * 12, k = 1 + Math.floor(Math.random() * 5), ph = Math.random() * 6.28;
+        const dark = Math.random() < 0.55;
+        g.strokeStyle = dark ? `rgba(38,18,6,${0.05 + Math.random() * 0.16})` : `rgba(205,148,92,${0.04 + Math.random() * 0.12})`;
+        g.lineWidth = 0.6 + Math.random() * (dark ? 2.6 : 1.6);
+        for (const off of [-1024, 0, 1024]) {
+          g.beginPath();
+          for (let x = 0; x <= 1024; x += 16) {
+            const y = y0 + off + Math.sin((x / 1024) * 6.2832 * k + ph) * amp;
+            if (x === 0) g.moveTo(x, y); else g.lineTo(x, y);
+          }
+          g.stroke();
+        }
+      }
+      for (let i = 0; i < 5; i++) { // faixas mais escuras, como nas tábuas
+        const y = Math.random() * 1024, h = 20 + Math.random() * 60;
+        const bgrad = g.createLinearGradient(0, y, 0, y + h);
+        bgrad.addColorStop(0, 'rgba(30,14,4,0)'); bgrad.addColorStop(0.5, 'rgba(30,14,4,.18)'); bgrad.addColorStop(1, 'rgba(30,14,4,0)');
+        g.fillStyle = bgrad; g.fillRect(0, y, 1024, h);
+      }
+      return c;
+    })();
+    const woodTex = tex(woodCanvas, { repeat: true, aniso: 8 }); woodTex.repeat.set(0.2, 0.28);
+    const woodBump = tex(woodCanvas, { srgb: false, repeat: true }); woodBump.repeat.set(0.2, 0.28);
+    const skins = [];
+    const fillBase = (g, w, h, f) => { if (f.wood) g.drawImage(woodCanvas, 0, 0, w, h); else { g.fillStyle = f.css; g.fillRect(0, 0, w, h); } };
     {
-      const bc = canvasOf(1024, 564), g = bc.getContext('2d');
-      g.fillStyle = '#7c2252'; g.fillRect(0, 0, 1024, 564);
-      g.fillStyle = '#240c26';
-      for (const x0 of [60, 640]) for (let i = 0; i < 9; i++) { rr2d(g, x0, 90 + i * 40, 320, 18, 9); g.fill(); }
-      g.fillStyle = '#14081a'; rr2d(g, 392, 330, 240, 170, 14); g.fill();
-      g.fillStyle = '#22102b'; rr2d(g, 402, 340, 220, 150, 10); g.fill();
-      g.fillStyle = '#e8dcc4'; g.font = '700 44px "Permanent Marker", "Segoe Print", cursive'; g.textAlign = 'center';
-      g.fillText('Meu Player', 512, 100);
-      g.font = '700 22px "Space Mono", monospace'; g.fillText('ESTÉREO · CASSETE', 512, 140);
-      const bt = tex(bc, { aniso: 8 });
+      const bc = canvasOf(1024, 564), bt = tex(bc, { aniso: 8 });
+      skins.push((f) => {
+        const g = bc.getContext('2d');
+        fillBase(g, 1024, 564, f);
+        g.fillStyle = f.vent;
+        for (const x0 of [60, 640]) for (let i = 0; i < 9; i++) { rr2d(g, x0, 90 + i * 40, 320, 18, 9); g.fill(); }
+        g.fillStyle = '#14081a'; rr2d(g, 392, 330, 240, 170, 14); g.fill();
+        g.fillStyle = '#22102b'; rr2d(g, 402, 340, 220, 150, 10); g.fill();
+        g.fillStyle = f.ink; g.font = '700 44px "Permanent Marker", "Segoe Print", cursive'; g.textAlign = 'center';
+        g.fillText('Meu Player', 512, 100);
+        g.font = '700 22px "Space Mono", monospace'; g.fillText('ESTÉREO · CASSETE', 512, 140);
+        bt.needsUpdate = true;
+      });
       const back = new T.Mesh(new T.PlaneGeometry(W - 2 * R + 1, H - 2 * R + 1), new T.MeshStandardMaterial({ map: bt, roughness: 0.62, metalness: 0, envMapIntensity: 0.55, bumpMap: bt, bumpScale: 0.6 }));
       back.position.z = -ZF - 0.01; back.rotation.y = Math.PI; deck.add(back);
-      back.scale.set(1, 1, 1);
       // laterais com furos e gravação
       for (const sx of [-1, 1]) {
-        const sc = canvasOf(512, 1024), sg = sc.getContext('2d');
-        sg.fillStyle = '#7c2252'; sg.fillRect(0, 0, 512, 1024);
-        sg.fillStyle = '#240c26'; for (let i = 0; i < 12; i++) { rr2d(sg, 150, 250 + i * 34, 212, 16, 8); sg.fill(); }
-        sg.fillStyle = '#e8dcc4'; sg.font = '700 30px "Space Mono", monospace'; sg.textAlign = 'center';
-        sg.fillText(sx < 0 ? 'FONES' : 'ESTÉREO', 256, 130);
-        const st = tex(sc, { aniso: 8 });
+        const sc = canvasOf(512, 1024), st = tex(sc, { aniso: 8 });
+        skins.push((f) => {
+          const sg = sc.getContext('2d');
+          fillBase(sg, 512, 1024, f);
+          sg.fillStyle = f.vent; for (let i = 0; i < 12; i++) { rr2d(sg, 150, 250 + i * 34, 212, 16, 8); sg.fill(); }
+          sg.fillStyle = f.ink; sg.font = '700 30px "Space Mono", monospace'; sg.textAlign = 'center';
+          sg.fillText(sx < 0 ? 'FONES' : 'ESTÉREO', 256, 130);
+          st.needsUpdate = true;
+        });
         const side = new T.Mesh(new T.PlaneGeometry(D - 2 * R + 1, H - 2 * R + 1), new T.MeshStandardMaterial({ map: st, roughness: 0.62, envMapIntensity: 0.55, bumpMap: st, bumpScale: 0.5 }));
         side.position.x = sx * (W / 2 + 0.01); side.rotation.y = sx * Math.PI / 2; deck.add(side);
         for (const [dz, rr] of [[-1.6, 0.9], [1.6, 0.6]]) {
@@ -466,7 +531,20 @@
         }
       }
     }
-
+    function applyFinish(key) {
+      const f = FINISHES[key] || FINISHES.ameixa;
+      if (f.wood) {
+        M.body.color.set(0xffffff); M.body.map = woodTex; M.body.bumpMap = woodBump; M.body.bumpScale = 0.5;
+        M.body.roughness = 0.5; M.body.clearcoat = 0.75; M.body.clearcoatRoughness = 0.25;
+      } else {
+        M.body.color.setHex(f.color); M.body.map = null; M.body.bumpMap = noiseTex; M.body.bumpScale = 0.35;
+        M.body.roughness = 0.46; M.body.clearcoat = 0.6; M.body.clearcoatRoughness = 0.3;
+      }
+      M.body.needsUpdate = true;
+      skins.forEach((paint) => paint(f));
+    }
+    finishHook = (k) => { applyFinish(k); dirty = true; st.sig = ''; };
+    applyFinish(curFinish);
     // ---------- Chão: sombra projetada e sombra de contato
     {
       const floor = new T.Mesh(new T.PlaneGeometry(220, 220), new T.ShadowMaterial({ opacity: 0.42 }));
