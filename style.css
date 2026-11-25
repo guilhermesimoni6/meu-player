@@ -355,6 +355,15 @@ body.is-dragging .boombox .door { pointer-events: auto; }
   .rack .cas .cl img, .rack .cas .cl .ph { bottom: -30px; width: 22px; height: 22px; }
   .rack-info { margin: 0 -12px; }
 }
+/* Celular deitado: o toca-fitas ocupa a altura que sobra embaixo do cabeçalho */
+@media (orientation: landscape) and (max-height: 520px) {
+  .screen { padding-block: 10px; }
+  header { margin-bottom: 6px; }
+  .boombox { width: 100vw; height: calc(100dvh - 76px); aspect-ratio: auto; max-height: none; margin-inline: calc(50% - 50vw); }
+  #now { min-height: calc(100dvh - 76px); margin-bottom: 24px; }
+  #now #status { display: none; }
+  .shelf.rack, #results.rack { max-height: 80dvh; }
+}
 @media (prefers-reduced-motion: reduce) {
   :root { transition: none; }
   button, input { transition: none; }

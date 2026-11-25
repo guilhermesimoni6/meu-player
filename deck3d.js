@@ -952,6 +952,19 @@
     }
 
     fit();
+    // Tela cheia (F11), girar o celular, barra do navegador que some e volta: reenquadra sempre.
+    // Só o ResizeObserver da caixa não basta, porque a tela 3D cobre a janela inteira.
+    let refitTimer = 0, refitRaf = 0;
+    const refit = () => {
+      cancelAnimationFrame(refitRaf);
+      refitRaf = requestAnimationFrame(fit);
+      clearTimeout(refitTimer); refitTimer = setTimeout(fit, 300); // o iPhone atualiza as medidas com atraso
+    };
+    addEventListener('resize', refit);
+    addEventListener('orientationchange', refit);
+    document.addEventListener('fullscreenchange', refit);
+    window.visualViewport?.addEventListener('resize', refit);
+    new ResizeObserver(refit).observe(canvas);
     document.fonts?.ready.then(() => { st.sig = ''; st.dialKey = ''; st.labelKey = ''; dirty = true; });
     document.addEventListener('visibilitychange', () => { dirty = true; });
     addEventListener('scroll', () => { dirty = true; }, { passive: true });
