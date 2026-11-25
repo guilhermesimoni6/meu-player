@@ -268,8 +268,10 @@ body.is-dragging { user-select: none; -webkit-user-select: none; cursor: grabbin
    O toca-fitas é desenhado em WebGL (deck3d.js). Aqui só ficam o palco,
    o marcador do compartimento e os controles escondidos.
    ===================================================================== */
-#now { --p: 0; }
-.boombox { position: relative; width: min(100%, 1000px); aspect-ratio: 1.6 / 1; max-height: 82vh; margin: clamp(28px, 6vw, 72px) auto 0; }
+/* Com a estante fechada, o toca-fitas fica no centro da janela */
+#now { --p: 0; position: relative; display: flex; flex-direction: column; justify-content: center; min-height: calc(100dvh - 210px); }
+#now #status { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; }
+.boombox { position: relative; width: min(100%, 1000px); aspect-ratio: 1.6 / 1; max-height: 82vh; margin: 0 auto; }
 .boombox canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y; cursor: grab; outline: 0; }
 .boombox canvas.grabbing { cursor: grabbing; }
 /* Marca onde está o compartimento na tela: o deck3d.js move e redimensiona esta caixa */
@@ -312,6 +314,7 @@ body::after {
   .search { order: 1; flex-basis: 100%; max-width: none; }
   #btn-logout { margin-left: auto; }
   .boombox { aspect-ratio: 1.3 / 1; }
+  #now { min-height: calc(100dvh - 300px); }
   .search input { font-size: 16px; } /* 16px evita o zoom automático do iPhone ao tocar na busca */
   .lib-list.shelf { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shelf.stack, #results.stack { height: 300px; }
