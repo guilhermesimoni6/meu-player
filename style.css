@@ -11,11 +11,11 @@
   --ink: #120a24;
   --text: #fff;
   --muted: rgb(255 255 255 / 72%);
-  --accent: #fff;
-  --on-accent: #1a1033;
-  --line: rgb(255 255 255 / 16%);
-  --panel: rgb(18 10 36 / 58%);
-  --hover: rgb(255 255 255 / 14%);
+  --accent: #1a1033;
+  --on-accent: #fff;
+  --line: rgb(26 16 51 / 22%);
+  --panel: rgb(18 10 36 / 90%);
+  --hover: rgb(26 16 51 / 12%);
   --paper: #f3eeff;
   --plastic: #261748;
   --cream: #f0e2c8;
@@ -38,33 +38,7 @@ body {
 svg { display: block; }
 .sr { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
 
-#bg {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(60% 50% at 15% 10%, var(--c1) 0%, transparent 70%),
-    radial-gradient(60% 55% at 90% 30%, var(--c2) 0%, transparent 70%),
-    radial-gradient(70% 60% at 50% 100%, var(--c3) 0%, transparent 70%),
-    var(--ink);
-  filter: saturate(1.2);
-}
-#bg::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: repeating-linear-gradient(0deg, rgb(0 0 0 / 14%) 0 1px, transparent 1px 3px);
-  mix-blend-mode: multiply;
-}
-/* Grade em perspectiva, como um horizonte dos anos 80 */
-#bg::before {
-  content: ""; position: absolute; left: -50%; right: -50%; bottom: 0; height: 46%;
-  background:
-    repeating-linear-gradient(90deg, rgb(255 255 255 / 22%) 0 1px, transparent 1px 64px),
-    repeating-linear-gradient(0deg, rgb(255 255 255 / 22%) 0 1px, transparent 1px 48px);
-  transform: perspective(380px) rotateX(62deg); transform-origin: 50% 100%;
-  -webkit-mask-image: linear-gradient(to top, #000 10%, transparent 90%);
-  mask-image: linear-gradient(to top, #000 10%, transparent 90%);
-  opacity: .55;
-}
+#bg { position: fixed; inset: 0; z-index: -1; background: #d8d8dc; }
 
 .hidden { display: none !important; }
 .screen {
@@ -102,7 +76,7 @@ button {
 
 /* ---------- Cabeçalho ---------- */
 header { display: flex; align-items: center; gap: 16px; margin-bottom: clamp(18px, 4vw, 32px); }
-.brand { display: flex; align-items: center; gap: 10px; font: 400 1.4rem var(--hand); white-space: nowrap; text-shadow: 2px 2px 0 var(--c1); }
+.brand { display: flex; align-items: center; gap: 10px; font: 400 1.4rem var(--hand); white-space: nowrap; color: #1a1033; }
 .brand-icon {
   display: inline-grid; place-items: center; width: 38px; aspect-ratio: 1; border-radius: 10px;
   background: var(--accent); color: var(--on-accent);
@@ -119,7 +93,7 @@ header { display: flex; align-items: center; gap: 16px; margin-bottom: clamp(18p
 }
 .search input:focus { outline: 0; border-color: var(--c3); box-shadow: inset 0 3px 8px #0008, 0 0 0 3px color-mix(in srgb, var(--c3) 40%, transparent), 0 0 22px color-mix(in srgb, var(--c3) 50%, transparent); }
 .search input::placeholder { color: var(--muted); }
-.ghost { border: 1px solid var(--line); border-radius: 99px; background: rgb(255 255 255 / 8%); padding: 10px 16px; }
+.ghost { border: 1px solid var(--line); border-radius: 99px; background: rgb(255 255 255 / 55%); color: #1a1033; padding: 10px 16px; }
 .ghost:hover { background: var(--hover); }
 
 /* ---------- Ordem da página: player em cima, fitas embaixo ---------- */
@@ -129,7 +103,7 @@ header { display: flex; align-items: center; gap: 16px; margin-bottom: clamp(18p
 #shelf { order: 2; position: relative; z-index: 1; }
 .shelf-btn {
   display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 99px;
-  background: rgb(255 255 255 / 8%); color: #fff; font: 700 .85rem var(--mono);
+  background: rgb(255 255 255 / 55%); color: #1a1033; font: 700 .85rem var(--mono);
 }
 .shelf-btn svg { width: 20px; height: 20px; }
 .shelf-btn:hover { background: var(--hover); }
@@ -285,8 +259,8 @@ body.is-dragging .boombox .door { pointer-events: auto; }
 #btn-mute .ic-mute, #btn-mute.is-muted .ic-vol { display: none; }
 #btn-mute.is-muted .ic-mute { display: block; }
 
-#status { margin: 1.4em 0 0; min-height: 1.2em; text-align: center; font: .84rem var(--mono); color: var(--muted); }
-#status.error { color: #ffd0dc; }
+#status { margin: 1.4em 0 0; min-height: 1.2em; text-align: center; font: .84rem var(--mono); color: #4a4458; }
+#status.error { color: #b0124f; }
 
 /* Sem WebGL: os controles aparecem em versão simples */
 .no-gl .boombox { display: none; }
@@ -298,14 +272,6 @@ body.is-dragging .boombox .door { pointer-events: auto; }
 .no-gl .legacy button { display: inline-grid; place-items: center; width: 48px; height: 48px; border: 1px solid var(--line); border-radius: 12px; background: rgb(255 255 255 / 10%); }
 .no-gl .legacy button svg { width: 22px; height: 22px; }
 .no-gl .legacy .reel { display: none; }
-
-/* Toque retrô por cima de tudo: linhas de varredura e cantos escurecidos */
-body::after {
-  content: ""; position: fixed; inset: 0; z-index: 100; pointer-events: none;
-  background:
-    repeating-linear-gradient(0deg, rgb(0 0 0 / 7%) 0 1px, transparent 1px 3px),
-    radial-gradient(120% 90% at 50% 45%, transparent 62%, rgb(0 0 0 / 40%));
-}
 
 /* ---------- Celular: caixa mais estreita e empilhada ---------- */
 @media (max-width: 760px) {
