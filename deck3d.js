@@ -579,16 +579,20 @@
 
     // animação da fita entrando e saindo (acompanha as classes que o app.js coloca)
     const tapeAnim = { mode: null, t: 0 };
+    // Só dispara quando a classe é ADICIONADA de verdade. O app.js mexe nas classes da fita a cada
+    // atualização do player; se bastasse a classe estar presente, a animação repetiria sem parar.
+    const has = (v, k) => (v || '').split(/\s+/).includes(k);
     const mo = new MutationObserver((list) => {
-      for (const m of list) {
-        if (m.attributeName !== 'class') continue;
-        const c = tapeEl.classList;
-        if (c.contains('inserting') && tapeAnim.mode !== 'in') { tapeAnim.mode = 'in'; tapeAnim.t = 0; }
-        else if (c.contains('ejecting') && tapeAnim.mode !== 'out') { tapeAnim.mode = 'out'; tapeAnim.t = 0; }
-        dirty = true;
-      }
+      const cls = list.filter((m) => m.attributeName === 'class');
+      cls.forEach((m, i) => {
+        const after = i < cls.length - 1 ? cls[i + 1].oldValue : tapeEl.getAttribute('class');
+        if (!has(m.oldValue, 'inserting') && has(after, 'inserting')) { tapeAnim.mode = 'in'; tapeAnim.t = 0; }
+        else if (!has(m.oldValue, 'ejecting') && has(after, 'ejecting')) { tapeAnim.mode = 'out'; tapeAnim.t = 0; }
+      });
+      dirty = true;
     });
-    mo.observe(tapeEl, { attributes: true, attributeFilter: ['class', 'style'] });
+    mo.observe(tapeEl, { attributes: true, attributeOldValue: true, attributeFilter: ['class', 'style'] });
+    api.tapeAnimating = () => tapeAnim.mode;
 
     // ------------------------------------------------------------ câmera e giro
     const view = { ry: innerWidth < 760 ? 6 : 18, rx: innerWidth < 760 ? 3 : 8 }; // graus
