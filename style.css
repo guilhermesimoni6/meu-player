@@ -336,6 +336,31 @@ body.is-dragging .boombox .door { pointer-events: auto; }
 .finish-menu [data-finish="creme"] { background: #e4d8bf; }
 .finish-menu [data-finish="petroleo"] { background: #1f6f78; }
 .finish-menu [data-finish="vermelho"] { background: #b3202a; }
+/* ---------- Personalizar fitas ---------- */
+.lib-edit { border: 1px solid rgb(255 255 255 / 38%); border-radius: 99px; padding: 7px 14px; font-weight: 700; font-size: .85rem; background: transparent; color: #fff; }
+.lib-edit:hover { background: rgb(255 255 255 / 14%); }
+.lib-edit[aria-pressed="true"] { background: #fff; color: #1a1033; }
+.rack.editing .cas { cursor: pointer; outline: 1px dashed rgb(255 255 255 / 55%); outline-offset: 2px; }
+.rack .cas.pinned .cl::after { content: "★"; position: absolute; top: 2px; left: 50%; transform: translateX(-50%); font-size: 1em; line-height: 1; color: #ffc23d; text-shadow: 0 0 3px #0008; }
+.shelf-btn[aria-pressed="false"] { opacity: .6; }
+.tape-dialog { width: min(92vw, 380px); padding: 22px; border: 1px solid rgb(255 255 255 / 18%); border-radius: 18px; background: #241a48; color: #fff; box-shadow: 0 24px 70px #000a; }
+.tape-dialog::backdrop { background: rgb(10 6 20 / 60%); }
+.tape-dialog h3 { margin: 0 0 14px; font: 400 1.4rem var(--hand); }
+.td-field { display: grid; gap: 6px; margin-bottom: 14px; font: .82rem var(--mono); color: var(--muted); }
+.td-field input[type="text"] { min-height: 42px; padding: 8px 12px; border: 2px solid rgb(255 255 255 / 28%); border-radius: 10px; background: rgb(11 6 24 / 70%); color: #fff; font: 1rem var(--mono); }
+.td-field input[type="text"]:focus { outline: 0; border-color: #00d2ff; }
+.td-colors { display: flex; flex-wrap: wrap; gap: 10px; }
+.td-colors button { width: 34px; height: 34px; padding: 0; border: 2px solid rgb(255 255 255 / 35%); border-radius: 50%; }
+.td-colors button.auto { background: conic-gradient(#ff3d81, #7a3dff, #00d2ff, #ff3d81); }
+.td-colors button[aria-checked="true"] { border-color: #fff; box-shadow: 0 0 0 2px #00d2ff; }
+.td-pin { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; font: .9rem var(--mono); }
+.td-pin input { width: 18px; height: 18px; accent-color: #00d2ff; }
+.td-actions { display: flex; align-items: center; gap: 8px; }
+.td-spacer { flex: 1; }
+.td-actions button { border: 0; border-radius: 99px; padding: 10px 16px; font-weight: 700; }
+.td-ghost { background: rgb(255 255 255 / 10%); color: #fff; }
+.td-ghost:hover { background: rgb(255 255 255 / 20%); }
+.td-main { background: #fff; color: #1a1033; }
 /* ---------- Celular: caixa mais estreita e empilhada ---------- */
 @media (max-width: 760px) {
   .screen { width: min(100% - 28px, 520px); }

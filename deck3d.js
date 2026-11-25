@@ -426,6 +426,22 @@
       tag(g, { type: 'switch', id });
     }
 
+    // ---------- Medidores de nível (LEDs), um por canal
+    const NL = 16, LED_Y = 3.85;
+    const ledOff = new T.Color(0x1d1526), ledCol = (i) => new T.Color(i >= 14 ? 0xff3b3b : i >= 10 ? 0xffb14a : 0x3ddc6a);
+    const leds = { L: [], R: [] };
+    for (const ch of ['L', 'R']) {
+      const dir = ch === 'L' ? -1 : 1;
+      mesh(plateGeo(18.8, 2.1, 0.6, 0.4, 0.12), M.black, dir * 19.4, LED_Y, ZF - 0.02);
+      for (let i = 0; i < NL; i++) {
+        const m = new T.Mesh(new T.PlaneGeometry(0.8, 1.1), new T.MeshBasicMaterial({ color: ledOff.clone(), toneMapped: false }));
+        m.position.set(dir * (11 + i * 1.07), LED_Y, ZF + 0.4); deck.add(m);
+        leds[ch].push(m);
+      }
+    }
+    const vu = { L: { v: 0, tgt: 0, pk: 0, shown: -1 }, R: { v: 0, tgt: 0, pk: 0, shown: -1 } };
+    let vuT = 0, vuNext = 0;
+
     // ---------- Teclas (teclado de piano, cor de creme)
     const iconCanvases = {};
     const keyDefs = [['btn-prev', 'prev'], ['btn-next', 'next'], ['btn-eject', 'eject'], ['btn-play', 'play'], ['btn-pause', 'pause'], ['btn-mute', 'mute']];
@@ -603,12 +619,13 @@
       }
       g.fillText(ellipsize(g, line, maxW), x, y);
     }
-    function drawLabel(name) {
+    const hexMix = (hex, to, t) => { const a = new T.Color(hex), b = new T.Color(to); return '#' + a.lerp(b, t).getHexString(); };
+    function drawLabel(name, color) {
       const g = labelG, w = 640, h = 248;
       g.fillStyle = '#f3eeff'; g.fillRect(0, 0, w, h);
       g.strokeStyle = 'rgba(26,16,51,.1)'; g.lineWidth = 2;
       for (let y = 96; y < h; y += 36) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
-      [PINK, PURPLE, CYAN].forEach((c, i) => { g.fillStyle = c; g.fillRect(0, i * 11, w, 11); });
+      (color ? [color, hexMix(color, '#000000', 0.4), hexMix(color, '#ffffff', 0.5)] : [PINK, PURPLE, CYAN]).forEach((c, i) => { g.fillStyle = c; g.fillRect(0, i * 11, w, 11); });
       const ax = 26, ay = 56, as = 160;
       g.fillStyle = '#1a1033'; g.fillRect(ax - 5, ay - 5, as + 10, as + 10);
       if (coverImg) { try { g.drawImage(coverImg, ax, ay, as, as); } catch { /* sem capa */ } }
@@ -647,7 +664,7 @@
         pausedOn: $('btn-pause').dataset.state === 'on',
         vol: Number($('vol').value) / 100, muted: $('btn-mute').classList.contains('is-muted'),
         shuffle: $('btn-shuffle').getAttribute('aria-pressed') === 'true', repeat: $('btn-repeat').dataset.mode || 'off',
-        cover: $('cover').getAttribute('src') || '', tapeName: $('tape-name').textContent,
+        cover: $('cover').getAttribute('src') || '', tapeName: $('tape-name').textContent, tapeColor: $('tape-name').dataset.k || '',
         empty: tapeEl.classList.contains('empty'), hide: tapeEl.style.opacity === '0',
         drop: doorEl.classList.contains('drop-ready'),
         fastL: $('reel-l').classList.contains('fast'), fastR: $('reel-r').classList.contains('fast'),
@@ -664,8 +681,8 @@
       const cls = list.filter((m) => m.attributeName === 'class');
       cls.forEach((m, i) => {
         const after = i < cls.length - 1 ? cls[i + 1].oldValue : tapeEl.getAttribute('class');
-        if (!has(m.oldValue, 'inserting') && has(after, 'inserting')) { tapeAnim.mode = 'in'; tapeAnim.t = 0; }
-        else if (!has(m.oldValue, 'ejecting') && has(after, 'ejecting')) { tapeAnim.mode = 'out'; tapeAnim.t = 0; }
+        if (!has(m.oldValue, 'inserting') && has(after, 'inserting')) { tapeAnim.mode = 'in'; tapeAnim.t = 0; window.Sfx?.tapeIn(); }
+        else if (!has(m.oldValue, 'ejecting') && has(after, 'ejecting')) { tapeAnim.mode = 'out'; tapeAnim.t = 0; window.Sfx?.tapeOut(); }
       });
       dirty = true;
     });
@@ -763,8 +780,8 @@
       cancelAnimationFrame(spinAnim); cancelAnimationFrame(inertiaRaf);
       if (act) {
         ctl = { act, x: e.clientX, y: e.clientY, moved: false, v0: act.type === 'knob' ? knobs[act.name].v : 0 };
-        if (act.type === 'key') keys[act.id].held = true;
-        if (act.type === 'switch') switches[act.id].held = true;
+        if (act.type === 'key') { keys[act.id].held = true; window.Sfx?.key(); }
+        if (act.type === 'switch') { switches[act.id].held = true; window.Sfx?.sw(); }
         if (act.type === 'knob' && act.name === 'tune') tuneDrag = true;
         interacting = true; dirty = true; return;
       }
@@ -778,6 +795,7 @@
           const d = ((ctl.y - e.clientY) + (e.clientX - ctl.x)) / 170;
           if (Math.abs(d) > 0.004) ctl.moved = true;
           k.v = Math.max(0, Math.min(1, ctl.v0 + d));
+          if (Math.abs(k.v - (k.tickAt ?? -1)) > 0.05) { k.tickAt = k.v; window.Sfx?.tick(); }
           if (ctl.act.name === 'vol') setVol(k.v);
           else if (ctl.act.name === 'tune') setSeek(k.v, false);
           dirty = true;
@@ -803,8 +821,9 @@
     const release = (e, cancel) => {
       if (ctl) {
         const c = ctl; ctl = null; interacting = false;
-        if (c.act.type === 'key') keys[c.act.id].held = false;
+        if (c.act.type === 'key') { keys[c.act.id].held = false; window.Sfx?.keyUp(); }
         if (c.act.type === 'switch') switches[c.act.id].held = false;
+        if (!cancel && c.act.type === 'reel') window.Sfx?.whirr();
         if (c.act.type === 'knob' && c.act.name === 'tune') { tuneDrag = false; if (c.moved) setSeek(knobs.tune.v, true); }
         if (!cancel && c.act.type !== 'knob' && sameAct(c.act, hitAt(e))) fire(c.act.id);
         dirty = true; return;
@@ -862,7 +881,7 @@
 
       // 1) estado do player
       const s = readState(); S = s;
-      const sig = [s.title, s.artist, s.cur, s.dur, s.cover, s.tapeName, s.empty, s.hide, s.playing, s.pausedOn, s.vol, s.muted, s.shuffle, s.repeat, s.drop, s.fastL, s.fastR, s.seek.toFixed(3), s.p.toFixed(3)].join('|');
+      const sig = [s.title, s.artist, s.cur, s.dur, s.cover, s.tapeName, s.tapeColor, s.empty, s.hide, s.playing, s.pausedOn, s.vol, s.muted, s.shuffle, s.repeat, s.drop, s.fastL, s.fastR, s.seek.toFixed(3), s.p.toFixed(3)].join('|');
       if (sig !== st.sig) { st.sig = sig; dirty = true; }
       if (s.cover !== coverSrc) loadCover(s.cover);
 
@@ -871,8 +890,8 @@
       const curText = tuneDrag ? fmtTime(knobs.tune.v * parseTime(s.dur)) : s.cur;
       const dialKey = [s.title, s.artist, curText, s.dur, ratio.toFixed(3)].join('|');
       if (dialKey !== st.dialKey) { st.dialKey = dialKey; drawDial(s, curText, ratio); }
-      const lk = (s.tapeName !== 'Sem fita' ? s.tapeName : s.title) + '|' + (coverImg ? 1 : 0);
-      if (lk !== st.labelKey || st.labelDirty) { st.labelKey = lk; st.labelDirty = false; drawLabel(s.tapeName !== 'Sem fita' ? s.tapeName : s.title); }
+      const lk = (s.tapeName !== 'Sem fita' ? s.tapeName : s.title) + '|' + (coverImg ? 1 : 0) + '|' + s.tapeColor;
+      if (lk !== st.labelKey || st.labelDirty) { st.labelKey = lk; st.labelDirty = false; drawLabel(s.tapeName !== 'Sem fita' ? s.tapeName : s.title, s.tapeColor); }
 
       // 3) animações
       let moving = false;
@@ -931,6 +950,30 @@
       // brilho do compartimento ao arrastar uma fita
       const wantGlow = s.drop ? 0.95 : 0;
       if (Math.abs(wantGlow - dropGlow) > 0.01) { dropGlow = lerp(dropGlow, wantGlow, Math.min(1, dt * 14)); glow.material.opacity = dropGlow; moving = true; }
+      // medidores de nível: dançam no ritmo enquanto toca (simulados, o Spotify não entrega o áudio)
+      const live = s.playing && !s.muted && s.vol > 0;
+      if (live) {
+        vuT += dt;
+        if (now > vuNext) {
+          vuNext = now + 65 + Math.random() * 70;
+          for (const [ch, ph] of [['L', 0], ['R', 1.3]]) {
+            const base = 0.28 + 0.46 * Math.abs(Math.sin(vuT * (ch === 'L' ? 3.1 : 2.7) + ph));
+            vu[ch].tgt = Math.min(1, (base + Math.random() * 0.3) * (0.55 + 0.45 * s.vol));
+          }
+        }
+      } else { vu.L.tgt = 0; vu.R.tgt = 0; }
+      for (const ch of ['L', 'R']) {
+        const u = vu[ch];
+        u.v += (u.tgt - u.v) * Math.min(1, dt * (u.tgt > u.v ? 26 : 7));
+        u.pk = Math.max(u.v, u.pk - dt * 0.4);
+        if (u.v < 0.004 && !u.tgt) u.v = 0;
+        const lit = Math.round(u.v * NL), pk = Math.round(u.pk * NL) - 1, sig2 = lit * 100 + pk;
+        if (sig2 !== u.shown) {
+          u.shown = sig2; moving = true;
+          leds[ch].forEach((m, i) => m.material.color.copy(i < lit || i === pk ? ledCol(i) : ledOff));
+        }
+        if (u.v > 0 || u.pk > 0.01) moving = true;
+      }
       if (moving || tapeAnim.mode) dirty = true;
 
       // 4) desenhar (no máximo ~30 fps quando só os carretéis giram, para poupar bateria)

@@ -341,7 +341,7 @@
       lists.forEach((p) => {
         const total = p.tracks?.total ?? p.items?.total;
         box.append(casCard({
-          img: p.images?.[0]?.url, name: p.name,
+          img: p.images?.[0]?.url, name: p.name, key: p.uri,
           sub: 'Playlist' + (total != null ? ' · ' + total + (total === 1 ? ' faixa' : ' faixas') : '') + (p.owner?.display_name ? ' · ' + p.owner.display_name : ''),
           onclick: () => { box.classList.add('hidden'); showLibrary(true); openPlaylist(p); },
           onDrop: () => playTrack(null, { context: p.uri }),
@@ -417,12 +417,73 @@
     return row;
   }
 
+  // ---------- Personalizar fitas (nome, cor e fixar), guardado neste navegador ----------
+  const getTapes = () => { try { return JSON.parse(LS.get('tapes') || '{}') || {}; } catch { return {}; } };
+  const saveTapes = (o) => LS.set('tapes', JSON.stringify(o));
+  const TAPE_COLORS = [['', 'Automática'], ['#ff3d81', 'Rosa'], ['#7a3dff', 'Roxo'], ['#00d2ff', 'Ciano'], ['#2fd48a', 'Verde'], ['#ffc23d', 'Amarelo'], ['#ff7a3d', 'Laranja']];
+  function applyTapeStyles(box) {
+    const tapes = getTapes();
+    const cards = [...box.querySelectorAll(':scope > .cas')];
+    cards.forEach((c) => {
+      const t = tapes[c.dataset.key] || {};
+      const nm = t.name || c.dataset.name;
+      const b = c.querySelector('b'); if (b) b.textContent = nm;
+      c.title = nm + ' — arraste até o toca-fitas';
+      if (t.color) {
+        c.style.setProperty('--k1', t.color);
+        c.style.setProperty('--k2', `color-mix(in srgb, ${t.color} 55%, #000)`);
+        c.style.setProperty('--k3', `color-mix(in srgb, ${t.color} 50%, #fff)`);
+      } else { ['--k1', '--k2', '--k3'].forEach((p) => c.style.removeProperty(p)); }
+      c.classList.toggle('pinned', Boolean(t.pin));
+    });
+    [...cards.filter((c) => c.classList.contains('pinned')), ...cards.filter((c) => !c.classList.contains('pinned'))].forEach((c) => box.append(c));
+  }
+  const ed = { card: null, color: '' };
+  function drawSwatches() {
+    const wrap = $('td-colors'); wrap.innerHTML = '';
+    TAPE_COLORS.forEach(([hex, label]) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.title = label; b.setAttribute('role', 'radio'); b.setAttribute('aria-label', label);
+      b.setAttribute('aria-checked', String(ed.color === hex));
+      if (hex) b.style.background = hex; else b.className = 'auto';
+      b.onclick = () => { ed.color = hex; drawSwatches(); };
+      wrap.append(b);
+    });
+  }
+  function openEditor(card) {
+    const key = card.dataset.key; if (!key) return;
+    const t = getTapes()[key] || {};
+    ed.card = card; ed.color = t.color || '';
+    $('td-name').value = t.name || card.dataset.name; $('td-pin').checked = Boolean(t.pin);
+    drawSwatches();
+    const dlg = $('tape-dialog');
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    $('td-name').focus();
+  }
+  function saveEditor(reset) {
+    const card = ed.card; if (!card) return;
+    const key = card.dataset.key, all = getTapes();
+    if (reset) delete all[key];
+    else {
+      const name = $('td-name').value.trim();
+      const t = {};
+      if (name && name !== card.dataset.name) t.name = name;
+      if (ed.color) t.color = ed.color;
+      if ($('td-pin').checked) t.pin = true;
+      if (Object.keys(t).length) all[key] = t; else delete all[key];
+    }
+    saveTapes(all);
+    const box = card.parentElement; if (box) arrangeStack(box);
+    $('tape-dialog').close();
+  }
+
   // ---------- Estante de lombadas ----------
   // As fitas ficam em pé, lado a lado, mostrando só a lombada. Passar o mouse levanta a fita
   // e mostra a capa e o nome na barra de baixo.
   function arrangeStack(box) {
-    const cards = [...box.querySelectorAll(':scope > .cas')];
     box.querySelector(':scope > .rack-info')?.remove();
+    applyTapeStyles(box);
+    const cards = [...box.querySelectorAll(':scope > .cas')];
     box._cards = cards;
     if (!cards.length) { box.classList.remove('rack'); return; }
     box.classList.add('rack');
@@ -430,7 +491,7 @@
     const hint = () => {
       info.innerHTML = '';
       const p = document.createElement('p'); p.className = 'rack-hint';
-      p.textContent = matchMedia('(hover: none)').matches
+      p.textContent = box.classList.contains('editing') ? 'Modo personalizar: clique numa fita para mudar o nome, a cor ou fixar no começo.' : matchMedia('(hover: none)').matches
         ? 'Toque numa fita para abrir. Segure e arraste até o toca-fitas.'
         : 'Passe o mouse numa fita para ver o nome. Clique para abrir ou arraste até o toca-fitas.';
       info.append(p);
@@ -456,7 +517,7 @@
   function makeDraggable(card, onDrop) {
     card.addEventListener('dragstart', (e) => e.preventDefault());
     card.addEventListener('pointerdown', (e) => {
-      if (e.button > 0) return;
+      if (e.button > 0 || card.closest('.editing')) return;
       const s = { x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, touch: e.pointerType === 'touch', drag: false, clone: null, timer: 0, raf: 0, hit: null };
       const door = () => document.querySelector('.door');
       const noScroll = (ev) => ev.preventDefault();
@@ -519,10 +580,11 @@
     });
   }
 
-  function casCard({ img, name, sub, uri, onclick, onDrop }) {
+  function casCard({ img, name, sub, uri, key, onclick, onDrop }) {
     const c = document.createElement('button');
     c.type = 'button'; c.className = 'cas'; c.title = name + ' — arraste até o toca-fitas';
     if (uri) c.dataset.uri = uri;
+    c.dataset.key = key || uri || ''; c.dataset.name = name;
     const cl = document.createElement('span'); cl.className = 'cl';
     if (img) { const i = document.createElement('img'); i.src = img; i.alt = ''; cl.append(i); }
     else { const ph = document.createElement('span'); ph.className = 'ph'; ph.innerHTML = '<svg aria-hidden="true"><use href="#i-note"/></svg>'; cl.append(ph); }
@@ -535,18 +597,20 @@
     c.append(cl, w);
     c.onclick = () => {
       if (c._dragged) return;
-      insertTape(name, c); onclick();
+      if (c.closest('.editing')) { openEditor(c); return; } // modo personalizar: abre o editor em vez de tocar
+      insertTape(c.querySelector('b').textContent, c, c.dataset.key); onclick();
     };
     // Soltar no toca-fitas toca a fita (a playlist inteira, ou só a música)
-    makeDraggable(c, () => { insertTape(name, null); (onDrop || onclick)(); });
+    makeDraggable(c, () => { insertTape(c.querySelector('b').textContent, null, c.dataset.key); (onDrop || onclick)(); });
     return c;
   }
 
   // Coloca a fita no toca-fitas: voa da prateleira até o compartimento e desliza para dentro
-  function insertTape(name, from) {
+  function insertTape(name, from, key) {
     const tape = document.querySelector('.tape');
     ejected = false;
     $('tape-name').textContent = name;
+    $('tape-name').dataset.k = (key && getTapes()[key]?.color) || '';
     tape.classList.remove('empty', 'ejecting');
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const slideIn = () => { tape.classList.remove('inserting'); void tape.offsetWidth; tape.classList.add('inserting'); };
@@ -617,11 +681,11 @@
       const data = await api('/me/playlists?limit=50');
       const items = (data?.items || []).filter(Boolean);
       const list = $('lib-list'); list.innerHTML = ''; list.classList.remove('stack', 'rack');
-      list.append(casCard({ name: 'Músicas curtidas', sub: 'Sua biblioteca', onclick: openLiked, onDrop: playLiked }));
+      list.append(casCard({ name: 'Músicas curtidas', sub: 'Sua biblioteca', key: 'liked', onclick: openLiked, onDrop: playLiked }));
       items.forEach((p) => {
         const total = p.tracks?.total ?? p.items?.total;
         list.append(casCard({
-          img: p.images?.[0]?.url, name: p.name,
+          img: p.images?.[0]?.url, name: p.name, key: p.uri,
           sub: total != null ? total + (total === 1 ? ' faixa' : ' faixas') : 'Playlist',
           onclick: () => openPlaylist(p),
           onDrop: () => playTrack(null, { context: p.uri }),
@@ -680,7 +744,7 @@
       libMessage(blocked
         ? 'O Spotify não deixa este app listar as faixas de playlists de outras pessoas, mas você pode tocar a playlist inteira.'
         : 'Não foi possível carregar as faixas. Tente de novo.');
-      if (blocked) setLibHeader(p.name, { back: true, play: () => { insertTape(p.name, null); playTrack(null, { context: p.uri }); } });
+      if (blocked) setLibHeader(p.name, { back: true, play: () => { insertTape(p.name, null, p.uri); playTrack(null, { context: p.uri }); } });
     }
   }
 
@@ -729,6 +793,14 @@
     $('btn-login').onclick = login;
     $('btn-logout').onclick = logout;
     $('btn-shelf').onclick = () => setShelf($('shelf').classList.contains('hidden'), { scroll: true });
+    $('lib-edit').onclick = () => {
+      const on = $('lib-edit').getAttribute('aria-pressed') !== 'true';
+      $('lib-edit').setAttribute('aria-pressed', String(on)); $('lib-edit').textContent = on ? 'Concluir' : 'Personalizar';
+      [$('lib-list'), $('results')].forEach((b) => { b.classList.toggle('editing', on); if (b._cards?.length) arrangeStack(b); });
+    };
+    $('tape-form').onsubmit = (e) => { e.preventDefault(); saveEditor(false); };
+    $('td-cancel').onclick = () => $('tape-dialog').close();
+    $('td-reset').onclick = () => saveEditor(true);
 
     const qs = new URLSearchParams(location.search);
     if (qs.get('error')) { $('login-msg').textContent = 'Login cancelado: ' + qs.get('error'); }
