@@ -182,6 +182,7 @@
     $('now').dataset.playing = String(!s.paused);
     $('btn-pause').dataset.state = s.paused ? 'on' : 'off';
     if (!ejected) document.querySelector('.tape').classList.remove('empty');
+    else if (!s.paused && Date.now() - ejectedAt > 4000) reinsertTape(); // voltou a tocar (por exemplo em outro aparelho): a fita volta
     $('btn-shuffle').setAttribute('aria-pressed', String(Boolean(s.shuffle)));
     const modes = ['off', 'context', 'track'];
     const mode = modes[s.repeat_mode] || 'off';
@@ -606,11 +607,13 @@
   }
 
   // Coloca a fita no toca-fitas: voa da prateleira até o compartimento e desliza para dentro
-  function insertTape(name, from, key) {
+  let lastTape = null, ejectedAt = 0;
+  function insertTape(name, from, key, colorOverride) {
     const tape = document.querySelector('.tape');
     ejected = false;
     $('tape-name').textContent = name;
-    $('tape-name').dataset.k = (key && getTapes()[key]?.color) || '';
+    $('tape-name').dataset.k = colorOverride ?? ((key && getTapes()[key]?.color) || '');
+    lastTape = { name, color: $('tape-name').dataset.k };
     tape.classList.remove('empty', 'ejecting');
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const slideIn = () => { tape.classList.remove('inserting'); void tape.offsetWidth; tape.classList.add('inserting'); };
@@ -639,6 +642,13 @@
     if (!facingFront()) { rotateFront(500); setTimeout(fly, 540); } else fly();
   }
 
+  // Tocar de novo depois de ejetar: a mesma fita volta para o compartimento
+  function reinsertTape() {
+    if (!ejected) return;
+    const t = lastTape || { name: $('title').textContent, color: '' };
+    insertTape(t.name, null, null, t.color);
+  }
+
   // Pausa de verdade: pede ao player, depois confere no Spotify e repete se o aparelho ativo ainda estiver tocando
   // (o comando do player só alcança este navegador; a música pode estar em outro aparelho).
   async function pauseHard() {
@@ -659,7 +669,10 @@
   // Ejetar: a fita sai do compartimento e a prateleira volta
   function ejectTape() {
     const tape = document.querySelector('.tape');
-    ejected = true;
+    // guarda a fita que está no aparelho, para colocar de volta quando o play for apertado
+    const cur = $('tape-name').textContent;
+    lastTape = { name: cur && cur !== 'Sem fita' ? cur : $('title').textContent, color: $('tape-name').dataset.k || '' };
+    ejected = true; ejectedAt = Date.now();
     pauseHard();
     tape.classList.remove('inserting'); tape.classList.add('ejecting');
     setTimeout(() => { tape.classList.remove('ejecting'); tape.classList.add('empty'); $('tape-name').textContent = 'Sem fita'; }, 480);
@@ -847,7 +860,7 @@
       clearTimeout(searchTimer);
       searchTimer = setTimeout(() => search(e.target.value), 300);
     });
-    $('btn-play').onclick = () => player?.resume();
+    $('btn-play').onclick = () => { reinsertTape(); player?.resume(); };
     $('btn-pause').onclick = () => player?.pause();
     $('btn-eject').onclick = ejectTape;
     $('btn-prev').onclick = () => player?.previousTrack();
@@ -910,7 +923,7 @@
         $('q').value = ''; $('q').blur(); search(''); return;
       }
       if (typing || !player) return;
-      if (e.key === ' ' && document.activeElement?.tagName !== 'BUTTON') { e.preventDefault(); player.togglePlay(); }
+      if (e.key === ' ' && document.activeElement?.tagName !== 'BUTTON') { e.preventDefault(); reinsertTape(); player.togglePlay(); }
       else if (e.key === 'ArrowRight' && state) { e.preventDefault(); player.seek(Math.min(state.duration, state.position + (Date.now() - state.updateTime) * (state.paused ? 0 : 1) + 5000)); }
       else if (e.key === 'ArrowLeft' && state) { e.preventDefault(); player.seek(Math.max(0, state.position + (Date.now() - state.updateTime) * (state.paused ? 0 : 1) - 5000)); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); setVolumeUi(Math.min(100, Number($('vol').value) + 5)); }
