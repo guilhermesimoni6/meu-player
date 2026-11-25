@@ -296,7 +296,9 @@ header { display: flex; align-items: center; gap: 16px; margin-bottom: clamp(18p
 .boombox { position: relative; width: min(100vw, 1500px); height: min(66vh, 680px); margin-inline: calc(50% - min(50vw, 750px)); }
 /* A tela 3D cobre a janela toda (atrás do conteúdo); os cliques vêm da caixa .boombox */
 .boombox { touch-action: pan-y; cursor: grab; }
-.boombox.grabbing { cursor: grabbing; }
+body.deck-grab, body.deck-grab * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
+body.deck-pointer, body.deck-pointer .boombox { cursor: pointer; }
+body { touch-action: pan-y; }
 .boombox canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; z-index: 0; outline: 0; }
 #app > header { position: relative; z-index: 3; }
 /* Marca onde está o compartimento na tela: o deck3d.js move e redimensiona esta caixa */

@@ -772,30 +772,34 @@
       if (end) el.dispatchEvent(new Event('change', { bubbles: true }));
     };
 
+    // Com zoom, o toca-fitas passa dos limites da caixa .boombox: por isso os gestos são ouvidos na página toda,
+    // mas só valem quando começam no fundo (não no cabeçalho, na estante ou em janelas).
+    const isStage = (t) => t === document.body || t === document.documentElement || t.id === 'app' || t.id === 'now' || t.id === 'bg' || t.id === 'status' || boombox.contains(t);
     let ctl = null, drag = null, vy = 0, vx = 0, inertiaRaf = 0, tuneDrag = false;
-    boombox.addEventListener('pointerdown', (e) => {
-      if (e.button > 0) return;
+    document.addEventListener('pointerdown', (e) => {
+      if (e.button > 0 || !isStage(e.target)) return;
       const act = hitAt(e);
-      boombox.setPointerCapture(e.pointerId);
+      try { e.target.setPointerCapture(e.pointerId); } catch { /* sem captura */ }
       cancelAnimationFrame(spinAnim); cancelAnimationFrame(inertiaRaf);
       if (act) {
         ctl = { act, x: e.clientX, y: e.clientY, moved: false, v0: act.type === 'knob' ? knobs[act.name].v : 0 };
         if (act.type === 'key') { keys[act.id].held = true; window.Sfx?.key(); }
         if (act.type === 'switch') { switches[act.id].held = true; window.Sfx?.sw(); }
         if (act.type === 'knob' && act.name === 'tune') tuneDrag = true;
+        if (act.type === 'knob') window.Sfx?.tick();
         interacting = true; dirty = true; return;
       }
       drag = { x: e.clientX, y: e.clientY, touch: e.pointerType === 'touch' };
-      vy = vx = 0; interacting = true; boombox.classList.add('grabbing');
+      vy = vx = 0; interacting = true; document.body.classList.add('deck-grab');
     });
-    boombox.addEventListener('pointermove', (e) => {
+    document.addEventListener('pointermove', (e) => {
       if (ctl) {
         if (ctl.act.type === 'knob') {
           const k = knobs[ctl.act.name];
           const d = ((ctl.y - e.clientY) + (e.clientX - ctl.x)) / 170;
           if (Math.abs(d) > 0.004) ctl.moved = true;
           k.v = Math.max(0, Math.min(1, ctl.v0 + d));
-          if (Math.abs(k.v - (k.tickAt ?? -1)) > 0.05) { k.tickAt = k.v; window.Sfx?.tick(); }
+          if (Math.abs(k.v - (k.tickAt ?? -1)) > 0.035) { k.tickAt = k.v; window.Sfx?.tick(); }
           if (ctl.act.name === 'vol') setVol(k.v);
           else if (ctl.act.name === 'tune') setSeek(k.v, false);
           dirty = true;
@@ -809,7 +813,8 @@
         if (!drag.touch) { vx = dy * 0.3; view.rx = Math.max(-8, Math.min(65, view.rx + vx)); }
         dirty = true; return;
       }
-      if (!hoverRaf) hoverRaf = requestAnimationFrame(() => { hoverRaf = 0; boombox.style.cursor = hitAt(e) ? 'pointer' : ''; });
+      if (!isStage(e.target)) { document.body.classList.remove('deck-pointer'); return; }
+      if (!hoverRaf) hoverRaf = requestAnimationFrame(() => { hoverRaf = 0; document.body.classList.toggle('deck-pointer', Boolean(hitAt(e))); });
     });
     let hoverRaf = 0;
     const inertia = () => {
@@ -828,12 +833,13 @@
         if (!cancel && c.act.type !== 'knob' && sameAct(c.act, hitAt(e))) fire(c.act.id);
         dirty = true; return;
       }
-      if (drag) { drag = null; interacting = false; boombox.classList.remove('grabbing'); inertiaRaf = requestAnimationFrame(inertia); }
+      if (drag) { drag = null; interacting = false; document.body.classList.remove('deck-grab'); inertiaRaf = requestAnimationFrame(inertia); }
     };
-    boombox.addEventListener('pointerup', (e) => release(e, false));
-    boombox.addEventListener('pointercancel', (e) => release(e, true));
-    boombox.addEventListener('dblclick', (e) => { if (!hitAt(e)) { rotateTo(frontTarget(), FRONT_RX); zoom.v = 1; dirty = true; } });
-    boombox.addEventListener('wheel', (e) => {
+    document.addEventListener('pointerup', (e) => release(e, false));
+    document.addEventListener('pointercancel', (e) => release(e, true));
+    document.addEventListener('dblclick', (e) => { if (isStage(e.target) && !hitAt(e)) { rotateTo(frontTarget(), FRONT_RX); zoom.v = 1; dirty = true; } });
+    document.addEventListener('wheel', (e) => {
+      if (!isStage(e.target)) return;
       const act = hitAt(e);
       if (!act || act.type !== 'knob' || knobs[act.name].deco) {
         // roda do mouse (ou pinça no trackpad) em qualquer outro lugar: zoom
@@ -844,7 +850,7 @@
       }
       e.preventDefault();
       const k = knobs[act.name], v = Math.max(0, Math.min(1, k.v - Math.sign(e.deltaY) * 0.05));
-      k.v = v;
+      k.v = v; window.Sfx?.tick();
       if (act.name === 'vol') setVol(v); else if (act.name === 'tune') setSeek(v, true);
       dirty = true;
     }, { passive: false });
@@ -852,7 +858,7 @@
     for (const n of ['bal', 'tone']) { // botões de enfeite giram livremente
       const k = knobs[n]; k.deco = true;
     }
-    boombox.addEventListener('pointermove', (e) => {
+    document.addEventListener('pointermove', (e) => {
       if (ctl && ctl.act.type === 'knob' && knobs[ctl.act.name].deco) { dirty = true; }
     });
 

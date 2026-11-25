@@ -44,7 +44,7 @@
     key: () => play((c) => { tone(c, { f: 170, f2: 55, dur: 0.07, gain: 0.55, type: 'triangle' }); noise(c, { dur: 0.018, f: 1500, gain: 0.35 }); }),
     keyUp: () => play((c) => { noise(c, { dur: 0.012, f: 2600, gain: 0.18 }); tone(c, { f: 130, f2: 90, dur: 0.03, gain: 0.14 }); }),
     sw: () => play((c) => { noise(c, { dur: 0.012, f: 2200, gain: 0.3 }); tone(c, { f: 240, f2: 120, dur: 0.05, gain: 0.3, type: 'square' }); }),
-    tick: () => play((c) => noise(c, { dur: 0.008, f: 3500, gain: 0.12 })),
+    tick: () => play((c) => { tone(c, { f: 1200, f2: 480, dur: 0.028, gain: 0.3, type: 'square' }); noise(c, { dur: 0.014, f: 2600, gain: 0.4 }); }),
     whirr: () => play((c) => noise(c, { dur: 0.55, type: 'bandpass', f: 500, f2: 1900, q: 2.2, gain: 0.18 })),
     tapeIn: () => play((c) => {
       noise(c, { dur: 0.22, type: 'bandpass', f: 1000, f2: 300, q: 1.2, gain: 0.22 });

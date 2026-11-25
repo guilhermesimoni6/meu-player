@@ -639,11 +639,28 @@
     if (!facingFront()) { rotateFront(500); setTimeout(fly, 540); } else fly();
   }
 
+  // Pausa de verdade: pede ao player, depois confere no Spotify e repete se o aparelho ativo ainda estiver tocando
+  // (o comando do player só alcança este navegador; a música pode estar em outro aparelho).
+  async function pauseHard() {
+    try { await player?.pause(); } catch { /* segue para a API */ }
+    let target = deviceId;
+    for (let i = 0; i < 3; i++) {
+      try { await api('/me/player/pause' + (target ? '?device_id=' + target : ''), { method: 'PUT' }); } catch { /* tenta de novo */ }
+      await new Promise((r) => setTimeout(r, 700));
+      try {
+        const d = await api('/me/player');
+        if (!d || !d.is_playing) break;
+        if (d.device?.id) target = d.device.id; // o aparelho que está tocando de fato
+      } catch { break; }
+    }
+    if (remote) pollRemote();
+  }
+
   // Ejetar: a fita sai do compartimento e a prateleira volta
   function ejectTape() {
     const tape = document.querySelector('.tape');
     ejected = true;
-    player?.pause();
+    pauseHard();
     tape.classList.remove('inserting'); tape.classList.add('ejecting');
     setTimeout(() => { tape.classList.remove('ejecting'); tape.classList.add('empty'); $('tape-name').textContent = 'Sem fita'; }, 480);
     $('results').classList.add('hidden');
