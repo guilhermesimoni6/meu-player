@@ -594,14 +594,26 @@
     const view = { ry: innerWidth < 760 ? 6 : 18, rx: innerWidth < 760 ? 3 : 8 }; // graus
     const FRONT_RY = view.ry, FRONT_RX = view.rx;
     let dirty = true, interacting = false, spinAnim = 0;
+    // A tela 3D cobre a janela inteira (o zoom não é cortado); o toca-fitas é enquadrado na caixa .boombox
+    const win = { w: 1, h: 1 }, bx = { cx: 0, cy: 0, hw: 1, hh: 1, left: 0, top: 0 };
+    function applyOffset() {
+      const r = boombox.getBoundingClientRect();
+      bx.cx = r.left + r.width / 2; bx.cy = r.top + r.height / 2; bx.hw = r.width / 2; bx.hh = r.height / 2; bx.left = r.left; bx.top = r.top;
+      camera.setViewOffset(win.w, win.h, -(bx.cx - win.w / 2), -(bx.cy - win.h / 2), win.w, win.h);
+      camera.updateProjectionMatrix();
+    }
     function fit() {
-      const w = boombox.clientWidth, h = boombox.clientHeight;
-      if (!w || !h) return;
+      const bw = boombox.clientWidth, bh = boombox.clientHeight;
+      if (!bw || !bh) return;
+      const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
+      win.w = w; win.h = h;
       const dpr = Math.min(window.devicePixelRatio || 1, quality === 'low' ? 1 : 2);
       renderer.setPixelRatio(dpr); renderer.setSize(w, h, false);
-      camera.aspect = w / h; camera.updateProjectionMatrix(); dist = 0;
       const tan = Math.tan(FOV / 2);
-      camDist = Math.max((W * 1.1 / 2) / (tan * camera.aspect), (51 / 2) / tan);
+      camera.aspect = w / h; camera.fov = (2 * Math.atan(tan * h / bh)) / DEG;
+      dist = 0;
+      camDist = Math.max((W * 1.1 / 2) / (tan * (bw / bh)), (51 / 2) / tan);
+      applyOffset();
       dirty = true;
     }
     let camDist = 100, quality = 'high';
@@ -610,6 +622,7 @@
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (const y of [FLOOR, TOP + 6.6]) fitPts.push(new T.Vector3(sx * (W / 2), y, sz * (D / 2)));
     const tmp = new T.Vector3();
     let dist = 0;
+    const zoom = { v: 1, shown: 1 };
     function placeCamera() {
       const p = view.rx * DEG;
       deck.rotation.y = view.ry * DEG; deck.updateMatrixWorld(true);
@@ -618,12 +631,13 @@
       for (let i = 0; i < 3; i++) {
         pos(want);
         let m = 0;
-        for (const v of fitPts) { tmp.copy(v); deck.localToWorld(tmp); tmp.project(camera); m = Math.max(m, Math.abs(tmp.x), Math.abs(tmp.y)); }
+        for (const v of fitPts) { tmp.copy(v); deck.localToWorld(tmp); tmp.project(camera); m = Math.max(m, Math.abs((tmp.x + 1) / 2 * win.w - bx.cx) / bx.hw, Math.abs((1 - tmp.y) / 2 * win.h - bx.cy) / bx.hh); }
         if (m > 0.97) want *= m / 0.97; else break;
       }
       if (!dist) dist = want;
       if (Math.abs(want - dist) > 0.05) { dist += (want - dist) * 0.3; dirty = true; } else dist = want;
-      pos(dist);
+      if (Math.abs(zoom.v - zoom.shown) > 0.002) { zoom.shown += (zoom.v - zoom.shown) * 0.25; dirty = true; } else zoom.shown = zoom.v;
+      pos(dist / zoom.shown);
     }
     api.resize = fit;
     api.facingFront = () => { const n = ((view.ry % 360) + 360) % 360; return (n < 40 || n > 320); };
@@ -660,10 +674,10 @@
     };
 
     let ctl = null, drag = null, vy = 0, vx = 0, inertiaRaf = 0, tuneDrag = false;
-    canvas.addEventListener('pointerdown', (e) => {
+    boombox.addEventListener('pointerdown', (e) => {
       if (e.button > 0) return;
       const act = hitAt(e);
-      canvas.setPointerCapture(e.pointerId);
+      boombox.setPointerCapture(e.pointerId);
       cancelAnimationFrame(spinAnim); cancelAnimationFrame(inertiaRaf);
       if (act) {
         ctl = { act, x: e.clientX, y: e.clientY, moved: false, v0: act.type === 'knob' ? knobs[act.name].v : 0 };
@@ -673,9 +687,9 @@
         interacting = true; dirty = true; return;
       }
       drag = { x: e.clientX, y: e.clientY, touch: e.pointerType === 'touch' };
-      vy = vx = 0; interacting = true; canvas.classList.add('grabbing');
+      vy = vx = 0; interacting = true; boombox.classList.add('grabbing');
     });
-    canvas.addEventListener('pointermove', (e) => {
+    boombox.addEventListener('pointermove', (e) => {
       if (ctl) {
         if (ctl.act.type === 'knob') {
           const k = knobs[ctl.act.name];
@@ -695,7 +709,7 @@
         if (!drag.touch) { vx = dy * 0.3; view.rx = Math.max(-8, Math.min(65, view.rx + vx)); }
         dirty = true; return;
       }
-      if (!hoverRaf) hoverRaf = requestAnimationFrame(() => { hoverRaf = 0; canvas.style.cursor = hitAt(e) ? 'pointer' : ''; });
+      if (!hoverRaf) hoverRaf = requestAnimationFrame(() => { hoverRaf = 0; boombox.style.cursor = hitAt(e) ? 'pointer' : ''; });
     });
     let hoverRaf = 0;
     const inertia = () => {
@@ -713,14 +727,20 @@
         if (!cancel && c.act.type !== 'knob' && sameAct(c.act, hitAt(e))) fire(c.act.id);
         dirty = true; return;
       }
-      if (drag) { drag = null; interacting = false; canvas.classList.remove('grabbing'); inertiaRaf = requestAnimationFrame(inertia); }
+      if (drag) { drag = null; interacting = false; boombox.classList.remove('grabbing'); inertiaRaf = requestAnimationFrame(inertia); }
     };
-    canvas.addEventListener('pointerup', (e) => release(e, false));
-    canvas.addEventListener('pointercancel', (e) => release(e, true));
-    canvas.addEventListener('dblclick', (e) => { if (!hitAt(e)) rotateTo(frontTarget(), FRONT_RX); });
-    canvas.addEventListener('wheel', (e) => {
+    boombox.addEventListener('pointerup', (e) => release(e, false));
+    boombox.addEventListener('pointercancel', (e) => release(e, true));
+    boombox.addEventListener('dblclick', (e) => { if (!hitAt(e)) { rotateTo(frontTarget(), FRONT_RX); zoom.v = 1; dirty = true; } });
+    boombox.addEventListener('wheel', (e) => {
       const act = hitAt(e);
-      if (!act || act.type !== 'knob' || knobs[act.name].deco) { return; }
+      if (!act || act.type !== 'knob' || knobs[act.name].deco) {
+        // roda do mouse (ou pinça no trackpad) em qualquer outro lugar: zoom
+        e.preventDefault();
+        const f = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015));
+        zoom.v = Math.max(0.6, Math.min(2.6, zoom.v * f)); dirty = true;
+        return;
+      }
       e.preventDefault();
       const k = knobs[act.name], v = Math.max(0, Math.min(1, k.v - Math.sign(e.deltaY) * 0.05));
       k.v = v;
@@ -731,7 +751,7 @@
     for (const n of ['bal', 'tone']) { // botões de enfeite giram livremente
       const k = knobs[n]; k.deco = true;
     }
-    canvas.addEventListener('pointermove', (e) => {
+    boombox.addEventListener('pointermove', (e) => {
       if (ctl && ctl.act.type === 'knob' && knobs[ctl.act.name].deco) { dirty = true; }
     });
 
@@ -739,12 +759,11 @@
     const proxyBox = [new T.Vector3(), new T.Vector3(), new T.Vector3(), new T.Vector3()];
     let lastProxy = '';
     function syncDoorProxy() {
-      const cw = boombox.clientWidth, ch = boombox.clientHeight;
       let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
       [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sy], i) => {
         const v = proxyBox[i].set(sx * DOOR_W / 2, DOOR_Y + sy * DOOR_H / 2, ZF + 1.6);
         deck.localToWorld(v); v.project(camera);
-        const px = (v.x + 1) / 2 * cw, py = (1 - v.y) / 2 * ch;
+        const px = (v.x + 1) / 2 * win.w - bx.left, py = (1 - v.y) / 2 * win.h - bx.top;
         x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
       });
       const sig = [x0, y0, x1, y1].map((n) => Math.round(n)).join(',');
@@ -836,7 +855,7 @@
       if (!dirty) return;
       if (s.playing && !interacting && !tapeAnim.mode && now - lastRender < 30) return;
       dirty = false; lastRender = now;
-      placeCamera();
+      applyOffset(); placeCamera();
       syncDoorProxy();
       const t0 = performance.now();
       renderer.render(scene, camera);
@@ -853,6 +872,7 @@
     fit();
     document.fonts?.ready.then(() => { st.sig = ''; st.dialKey = ''; st.labelKey = ''; dirty = true; });
     document.addEventListener('visibilitychange', () => { dirty = true; });
+    addEventListener('scroll', () => { dirty = true; }, { passive: true });
     requestAnimationFrame(frame);
   }
 })();
