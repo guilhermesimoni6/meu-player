@@ -957,7 +957,9 @@
       // alto-falantes pulsam com a música
       if (s.playing) {
         thump = 1; moving = true;
-        const z = 1 + kick * 0.065 * swell;
+        // amplitude proporcional ao volume: baixo = quase parado, alto = cone bem solto
+        const amp = s.muted ? 0 : 0.004 + 0.12 * Math.pow(s.vol, 1.4);
+        const z = 1 + kick * amp * swell;
         speakers.forEach((g) => { g.children[2].scale.set(z, z, 0.55 * z); });
       } else if (thump) { thump = 0; speakers.forEach((g) => g.children[2].scale.set(1, 1, 0.55)); dirty = true; }
       // brilho do compartimento ao arrastar uma fita
