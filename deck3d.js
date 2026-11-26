@@ -1262,13 +1262,27 @@
       const showTape = !s.empty && !s.hide;
       if (tapeAnim.mode) {
         tapeAnim.t += dt; moving = true;
-        const dur = tapeAnim.mode === 'in' ? 0.7 : 0.5, t = Math.min(1, tapeAnim.t / dur);
-        let k;
-        if (tapeAnim.mode === 'in') { const e = 1 - Math.pow(1 - t, 3); k = 1 - e; } else { k = t * t; }
-        tape.position.set(0, DOOR_Y + k * 2.2, TAPE_Z + k * 9);
-        tape.rotation.x = -k * 0.35;
-        if (t >= 1) { tapeAnim.mode = null; tape.position.set(0, DOOR_Y, TAPE_Z); tape.rotation.x = 0; }
-      } else if (tape.position.z !== TAPE_Z) { tape.position.set(0, DOOR_Y, TAPE_Z); tape.rotation.x = 0; }
+        // pose = [altura, profundidade, inclinação para trás, giro de lado, escala] (relativas à fita assentada)
+        const POSE_FAR = [3.8, 12.5, -0.55, 0.16, 1.14], POSE_NEAR = [0.9, 3.4, -0.12, 0.03, 1.04], POSE_SEAT = [0, 0, 0, 0, 1];
+        const mixP = (a, b, u) => a.map((v, i) => v + (b[i] - v) * u);
+        const ts = tapeAnim.t; let pose, done = false;
+        if (tapeAnim.mode === 'in') {
+          // 1) chega em arco até a frente do compartimento  2) desliza para dentro  3) assenta com uma batidinha
+          const D1 = 0.5, D2 = 0.32, D3 = 0.3;
+          if (ts < D1) { const u = ts / D1; pose = mixP(POSE_FAR, POSE_NEAR, 1 - Math.pow(1 - u, 3)); }
+          else if (ts < D1 + D2) { const u = (ts - D1) / D2; pose = mixP(POSE_NEAR, POSE_SEAT, u * u * (3 - 2 * u)); }
+          else { const u = Math.min(1, (ts - D1 - D2) / D3); pose = [0, -0.5 * Math.sin(Math.PI * u) * Math.pow(1 - u, 1.5), 0, 0, 1]; if (u >= 1) done = true; }
+        } else {
+          // 1) a mola empurra a fita para fora (com um tranco)  2) pausa  3) a fita é puxada para longe
+          const D1 = 0.16, D2 = 0.1, D3 = 0.5, POP = [0.4, 2.4, -0.05, 0, 1];
+          if (ts < D1) { const u = ts / D1, s = 1.70158, e = 1 + (s + 1) * Math.pow(u - 1, 3) + s * Math.pow(u - 1, 2); pose = mixP(POSE_SEAT, POP, e); }
+          else if (ts < D1 + D2) pose = POP;
+          else { const u = Math.min(1, (ts - D1 - D2) / D3); pose = mixP(POP, [3.4, 13, -0.5, -0.15, 1.12], u * u * u); if (u >= 1) done = true; }
+        }
+        tape.position.set(0, DOOR_Y + pose[0], TAPE_Z + pose[1]);
+        tape.rotation.x = pose[2]; tape.rotation.z = pose[3]; tape.scale.setScalar(pose[4]);
+        if (done) { tapeAnim.mode = null; tape.position.set(0, DOOR_Y, TAPE_Z); tape.rotation.set(0, 0, 0); tape.scale.setScalar(1); }
+      } else if (tape.position.z !== TAPE_Z || tape.scale.x !== 1) { tape.position.set(0, DOOR_Y, TAPE_Z); tape.rotation.set(0, 0, 0); tape.scale.setScalar(1); }
       tape.visible = showTape || tapeAnim.mode === 'out';
       // carretéis: giram ao tocar, e a fita passa de um para o outro
       // relógio suave da faixa (o texto só muda a cada segundo) e andamento próprio de cada música
@@ -1292,7 +1306,7 @@
         r.spool.scale.setScalar(r.r);
       });
       // cabeçote e rolete encostam na fita ao tocar e se afastam ao pausar; a fita balança de leve
-      const wantEng = s.playing && !s.fastL && !s.fastR ? 1 : 0;
+      const wantEng = s.playing && !s.fastL && !s.fastR && !tapeAnim.mode ? 1 : 0;
       if (Math.abs(wantEng - mechSt.eng) > 0.002) { mechSt.eng = lerp(mechSt.eng, wantEng, Math.min(1, dt * 7)); moving = true; } else mechSt.eng = wantEng;
       const ge = mechSt.eng * mechSt.eng * (3 - 2 * mechSt.eng);
       head.position.set(lerp(REST.hx, ENG.hx, ge), lerp(REST.hy, ENG.hy, ge), 0);

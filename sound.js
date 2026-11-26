@@ -46,15 +46,18 @@
     sw: () => play((c) => { noise(c, { dur: 0.012, f: 2200, gain: 0.3 }); tone(c, { f: 240, f2: 120, dur: 0.05, gain: 0.3, type: 'square' }); }),
     tick: () => play((c) => { tone(c, { f: 1200, f2: 480, dur: 0.028, gain: 0.3, type: 'square' }); noise(c, { dur: 0.014, f: 2600, gain: 0.4 }); }),
     whirr: () => play((c) => noise(c, { dur: 0.55, type: 'bandpass', f: 500, f2: 1900, q: 2.2, gain: 0.18 })),
+    // tempos combinados com a animação do deck3d.js: entrada 0,5 s chegando + 0,32 s deslizando + 0,3 s assentando
     tapeIn: () => play((c) => {
-      noise(c, { dur: 0.22, type: 'bandpass', f: 1000, f2: 300, q: 1.2, gain: 0.22 });
-      noise(c, { t: 0.24, dur: 0.02, f: 1200, gain: 0.45 }); tone(c, { t: 0.24, f: 120, f2: 55, dur: 0.1, gain: 0.55, type: 'triangle' });
-      noise(c, { t: 0.31, dur: 0.012, f: 2400, gain: 0.25 });
+      noise(c, { dur: 0.5, type: 'bandpass', f: 1400, f2: 500, q: 1.1, gain: 0.16 });                      // fita no ar
+      noise(c, { t: 0.5, dur: 0.32, type: 'bandpass', f: 700, f2: 1100, q: 2.4, gain: 0.14 });             // desliza no compartimento
+      noise(c, { t: 0.82, dur: 0.02, f: 1200, gain: 0.5 }); tone(c, { t: 0.82, f: 130, f2: 52, dur: 0.12, gain: 0.6, type: 'triangle' }); // trava
+      noise(c, { t: 0.9, dur: 0.012, f: 2600, gain: 0.22 }); tone(c, { t: 0.9, f: 90, f2: 60, dur: 0.05, gain: 0.2, type: 'triangle' });     // batidinha
     }),
+    // saída: o tranco da mola, uma pausa e a fita sendo puxada
     tapeOut: () => play((c) => {
-      tone(c, { f: 420, f2: 90, dur: 0.3, gain: 0.1, type: 'sawtooth' });
-      noise(c, { dur: 0.26, type: 'bandpass', f: 500, f2: 1500, q: 1.4, gain: 0.16 });
-      noise(c, { t: 0.02, dur: 0.02, f: 1400, gain: 0.4 }); tone(c, { t: 0.02, f: 100, f2: 50, dur: 0.09, gain: 0.5, type: 'triangle' });
+      noise(c, { dur: 0.02, f: 1500, gain: 0.5 }); tone(c, { f: 150, f2: 50, dur: 0.12, gain: 0.6, type: 'triangle' });
+      tone(c, { t: 0.01, f: 520, f2: 220, dur: 0.1, gain: 0.07, type: 'square' });
+      noise(c, { t: 0.26, dur: 0.5, type: 'bandpass', f: 500, f2: 1800, q: 1.3, gain: 0.15 });
     }),
     // som contínuo de fita correndo (avançar ou voltar) enquanto o botão fica apertado
     windStart: (dir) => play((c) => {

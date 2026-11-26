@@ -775,7 +775,7 @@
     ejected = true; ejectedAt = Date.now();
     pauseHard();
     tape.classList.remove('inserting'); tape.classList.add('ejecting');
-    setTimeout(() => { tape.classList.remove('ejecting'); tape.classList.add('empty'); $('tape-name').textContent = 'Sem fita'; }, 480);
+    setTimeout(() => { tape.classList.remove('ejecting'); tape.classList.add('empty'); $('tape-name').textContent = 'Sem fita'; }, 820);
     $('results').classList.add('hidden');
     loadPlaylists();
     $('library').scrollIntoView({ behavior: 'smooth', block: 'start' });
