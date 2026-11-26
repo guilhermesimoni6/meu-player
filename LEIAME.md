@@ -76,7 +76,6 @@ O GitHub Pages leva cerca de 1 minuto. Para o navegador não usar arquivos antig
   Na janela de personalizar dá para zerar.
 - **Rótulo:** estilos Clássico, Listras, Minimal, Retrô, Neon e Foto, com imagem própria (colada ou escolhida; guardada reduzida no navegador).
 - **Modo noite:** botão *Noite* no cabeçalho; o dial e os medidores iluminam o corpo e pulsam levemente com a batida.
-- **Reflexo vivo:** um reflexo de janela passa devagar pelos vidros (porta, dial, medidores) e uma luz suave varre o corpo. Só desenha ~8 quadros por segundo.
 - **Antena telescópica:** arrastar para cima estica, para os lados inclina (guardado em `antenna`). Balança com o grave e o chiado de rádio (`Sfx.hiss`) some com ela esticada e bem inclinada.
 - **Caneta do nome:** Marcador, Esferográfica ou Lápis por fita (`pen` em `tapes`), com leve borrão. Fontes Caveat e Reenie Beanie vêm do Google Fonts.
 - **Rolo e contador:** o rolo mostra voltas de fita e o contador mecânico de 4 rodinhas conta a fita; tocar nele zera.

@@ -627,23 +627,6 @@
     }
     let counterZero = 0;
 
-    // ---------- Reflexo da janela do quarto passando devagar pelos vidros
-    const streaks = [];
-    {
-      const rc = canvasOf(1024, 256), rg = rc.getContext('2d');
-      for (const [x, w, a] of [[150, 100, 0.55], [280, 56, 0.35], [560, 130, 0.5], [740, 48, 0.3]]) {
-        const gr = rg.createLinearGradient(x, 0, x + w, 0);
-        gr.addColorStop(0, 'rgba(255,250,235,0)'); gr.addColorStop(0.3, `rgba(255,250,235,${a})`); gr.addColorStop(0.7, `rgba(255,250,235,${a})`); gr.addColorStop(1, 'rgba(255,250,235,0)');
-        rg.setTransform(1, 0, -0.55, 1, 140, 0); rg.fillStyle = gr; rg.fillRect(x, 0, w, 256);
-      }
-      const base = tex(rc, { repeat: true }); base.repeat.set(0.5, 1);
-      [[DOOR_W - 2, DOOR_H - 2, 0, DOOR_Y, ZF + 1.74, 0], [25, 6.2, 0, DIAL_Y, ZF + 1.07, 0.3], [VU_W + 0.7, VU_H + 0.4, -19.4, VU_Y, ZF + 0.74, 0.55], [VU_W + 0.7, VU_H + 0.4, 19.4, VU_Y, ZF + 0.74, 0.65]].forEach(([w, h, x, y, z, ph]) => {
-        const t = base.clone(); t.needsUpdate = true;
-        const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.5, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false }));
-        m.position.set(x, y, z); m.renderOrder = 2; deck.add(m); streaks.push({ t, m, ph });
-      });
-    }
-    const sweepLight = new T.DirectionalLight(0xfff0d8, 0.55); sweepLight.position.set(-60, 26, 40); scene.add(sweepLight);
 
     // ---------- Antena telescópica: puxar para cima estica, arrastar de lado inclina
     const ANT_X = 25.5, ANT_Z = -3.2, SEG = 3.6, STEP = 2.0;
@@ -1335,7 +1318,7 @@
       else if (night.cur !== night.tgt) { night.cur = night.tgt; applyNight(night.cur, 1); moving = true; }
       {
         const np = 1 + (s.playing && !s.muted ? 0.16 * kick * Math.max(0.25, s.vol) : 0), nk = night.cur;
-        dialLight.intensity = (nk * 420 + (1 - nk) * 40) * np; vuLights.forEach((l) => { l.intensity = (nk * 150 + (1 - nk) * 14) * np; });
+        dialLight.intensity = (nk * 420) * np; vuLights.forEach((l) => { l.intensity = (nk * 150) * np; });
         if (nk > 0 && s.playing) moving = true;
       }
       // contador mecânico: uma contagem a cada ~1,1 s de fita; cada rodinha gira na vez (a de cima só rola quando a de baixo passa do 9)
@@ -1347,11 +1330,6 @@
           if (Math.abs(x - dg.shown) > 0.004) { dg.shown = x; dg.t.offset.y = 0.9 - x * 0.1; }
         }
       }
-      // reflexo da janela: passa devagar pelos vidros e pelo corpo (só desenha ~8 vezes por segundo)
-      sweepLight.position.x = -60 * Math.cos(now / 9000); sweepLight.position.y = 26 + 8 * Math.sin(now / 13000);
-      sweepLight.intensity = 0.55 * (1 - 0.92 * night.cur);
-      for (const r of streaks) { r.t.offset.x = ((now / 1000) * 0.012 + r.ph) % 1; r.m.material.opacity = 0.5 - 0.36 * night.cur; }
-      if (now - lastSweep > 125 && quality === 'high' && !document.hidden) { lastSweep = now; moving = true; }
       // antena: balança no ritmo do grave (mais quando está esticada e com o volume alto) e o chiado de rádio cai com ela esticada
       {
         const beatSign = Math.floor(beat) % 2 ? 1 : -1, drive = s.playing && !s.muted ? beatSign * kick * 0.07 * s.vol * (0.4 + antSt.e) : 0;
