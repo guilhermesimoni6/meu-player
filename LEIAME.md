@@ -80,3 +80,14 @@ O GitHub Pages leva cerca de 1 minuto. Para o navegador não usar arquivos antig
 - **Caneta do nome:** Marcador, Esferográfica ou Lápis por fita (`pen` em `tapes`), com leve borrão. Fontes Caveat e Reenie Beanie vêm do Google Fonts.
 - **Caixinha:** na estante, clicar na lombada abre a caixinha (`openCase` em `app.js`); clicar na fita dentro dela coloca no aparelho. Arrastar a lombada continua funcionando.
 - **Andamento real (ReccoBeats):** o BPM e a energia de cada faixa vêm de `api.reccobeats.com` (grátis, sem chave, só o ID público da música é enviado) e ficam em `tempo` no navegador. Sem dados, usa o ritmo simulado por faixa. Cobre só parte das músicas e não informa onde cai cada batida.
+
+## Instalador para Windows
+
+`windows\dist\MeuPlayer-Setup.exe` instala o Meu Player como aplicativo: atalhos no Menu Iniciar e na Area de Trabalho, sem administrador,
+com entrada em *Aplicativos instalados* para desinstalar. Ele abre o site publicado (GitHub Pages) numa janela propria, usando o Edge
+(ou o Chrome) em modo aplicativo com perfil separado, entao o login do Spotify fica guardado nele. Como carrega o site online, qualquer
+atualizacao publicada aparece sozinha, sem reinstalar.
+
+- Gerar de novo (depois de mexer em `windows\*.ps1`): `powershell -ExecutionPolicy Bypass -File windows\build-setup.ps1` (usa o IExpress do Windows).
+- O arquivo nao e assinado, entao o SmartScreen pode avisar: *Mais informacoes > Executar assim mesmo*.
+- Teste sem instalar de verdade: defina `MEUPLAYER_TEST` com uma pasta temporaria antes de rodar o instalador.
