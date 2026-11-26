@@ -17,7 +17,7 @@ try { if (localStorage.getItem("refresh_token") || localStorage.getItem("access_
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Permanent+Marker&family=Reenie+Beanie&family=Space+Mono:wght@400;700&display=swap">
-<link rel="stylesheet" href="style.css?v=38">
+<link rel="stylesheet" href="style.css?v=39">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
@@ -49,17 +49,7 @@ try { if (localStorage.getItem("refresh_token") || localStorage.getItem("access_
   <header>
     <div class="brand"><span class="brand-icon" aria-hidden="true"><svg><use href="#i-tape"/></svg></span><span>Meu Player</span></div>
     <button id="btn-shelf" class="shelf-btn" type="button" aria-expanded="false" aria-controls="shelf" title="Abrir as fitas"><svg aria-hidden="true"><use href="#i-tape"/></svg><span>Fitas</span></button>
-    <div class="finish">
-      <button id="btn-finish" class="shelf-btn" type="button" aria-expanded="false" aria-controls="finish-menu" title="Mudar a cor do toca-fitas"><svg aria-hidden="true"><use href="#i-palette"/></svg><span>Cor</span></button>
-      <div id="finish-menu" class="finish-menu hidden" role="radiogroup" aria-label="Cor do toca-fitas">
-        <button type="button" role="radio" data-finish="ameixa" title="Ameixa" aria-label="Ameixa"></button>
-        <button type="button" role="radio" data-finish="madeira" title="Madeira" aria-label="Madeira"></button>
-        <button type="button" role="radio" data-finish="preto" title="Preto" aria-label="Preto"></button>
-        <button type="button" role="radio" data-finish="creme" title="Creme" aria-label="Creme"></button>
-        <button type="button" role="radio" data-finish="petroleo" title="Azul petróleo" aria-label="Azul petróleo"></button>
-        <button type="button" role="radio" data-finish="vermelho" title="Vermelho" aria-label="Vermelho"></button>
-      </div>
-    </div>    <button id="btn-sfx" class="shelf-btn" type="button" aria-pressed="true" title="Sons do toca-fitas"><svg aria-hidden="true"><use href="#i-vol"/></svg><span>Sons</span></button>
+    <button id="btn-sfx" class="shelf-btn" type="button" aria-pressed="true" title="Sons do toca-fitas"><svg aria-hidden="true"><use href="#i-vol"/></svg><span>Sons</span></button>
     <button id="btn-night" class="shelf-btn" type="button" aria-pressed="false" title="Modo noite: as luzes do aparelho iluminam o corpo"><svg aria-hidden="true"><use href="#i-moon"/></svg><span>Noite</span></button>
     <div class="search">
       <input id="q" type="search" aria-label="Buscar músicas ou artistas" placeholder="Buscar músicas, artistas…" autocomplete="off">
@@ -145,10 +135,10 @@ try { if (localStorage.getItem("refresh_token") || localStorage.getItem("access_
   </form>
 </dialog>
 <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
-<script src="config.js?v=38"></script>
-<script src="app.js?v=38"></script>
-<script src="sound.js?v=38"></script>
-<script src="deck3d.js?v=38"></script>
+<script src="config.js?v=39"></script>
+<script src="app.js?v=39"></script>
+<script src="sound.js?v=39"></script>
+<script src="deck3d.js?v=39"></script>
 <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </body>
 </html>

@@ -22,8 +22,7 @@
     petroleo: { color: 0x1f6f78, css: '#1f6f78', ink: '#e4f6f4', vent: '#0a2c31' },
     vermelho: { color: 0xb3202a, css: '#b3202a', ink: '#ffe9dc', vent: '#3a080c' },
   };
-  let curFinish = 'ameixa', finishHook = null;
-  try { const s = localStorage.getItem('finish'); if (s && FINISHES[s]) curFinish = s; } catch { /* sem armazenamento */ }
+  let curFinish = 'madeira', finishHook = null;   // só o acabamento amadeirado
   const finishMenu = $('finish-menu'), finishBtn = $('btn-finish');
   const markFinish = () => finishMenu && finishMenu.querySelectorAll('[data-finish]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.finish === curFinish)));
   api.setFinish = (k) => {

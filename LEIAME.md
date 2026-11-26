@@ -45,7 +45,7 @@ Abra http://127.0.0.1:5173/ (precisa ser `127.0.0.1`, não `localhost`, por caus
   aparece na tela, para o arrastar-e-soltar das fitas e a animação de voo funcionarem.
 - A tela 3D cobre a janela inteira (`position: fixed`) e os gestos são ouvidos na página toda, mas só valem quando
   começam no fundo (`isStage`).
-- Guardado no navegador (localStorage): `finish` (cor do toca-fitas), `sfx` (sons), `night` (modo noite), `plays` (vezes que cada fita foi usada, define o desgaste),
+- Guardado no navegador (localStorage): `finish` `sfx` (sons), `night` (modo noite), `plays` (vezes que cada fita foi usada, define o desgaste),
   `tapes` (nome, cor, estilo do rótulo, imagem e fixadas das fitas),
   e os tokens do Spotify.
 
