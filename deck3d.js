@@ -456,8 +456,14 @@
     for (const sx of [-1, 1]) for (const sy of [-1, 1]) mesh(new T.CylinderGeometry(0.34, 0.34, 0.14, 16).rotateX(Math.PI / 2), M.steel, sx * 8.0, sy * 4.6, CT / 2 + 0.05, tape);
     const spoolTex = (() => {
       const c = canvasOf(128, 128), g = c.getContext('2d');
-      g.fillStyle = '#4a2c18'; g.fillRect(0, 0, 128, 128);
-      for (let i = 4; i < 64; i += 3) { g.strokeStyle = `rgba(0,0,0,${0.12 + (i % 2) * 0.1})`; g.lineWidth = 1; g.beginPath(); g.arc(64, 64, i, 0, 7); g.stroke(); }
+      g.fillStyle = '#3b2312'; g.fillRect(0, 0, 128, 128);
+      // camadas de fita enrolada: dezenas de voltas finas, cada uma com um tom um pouco diferente
+      let rs = 7; const rn = () => (rs = (Math.imul(rs, 1103515245) + 12345) >>> 0) / 4294967296;
+      for (let r = 63; r > 16; r -= 0.9) {
+        const l = 17 + rn() * 9 + (r % 2 ? 2 : 0);
+        g.strokeStyle = `hsl(${22 + rn() * 6}, ${36 + rn() * 10}%, ${l}%)`; g.lineWidth = 1.1; g.beginPath(); g.arc(64, 64, r, 0, 7); g.stroke();
+      }
+      g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = 2; g.beginPath(); g.arc(64, 64, 62, 0, 7); g.stroke();   // borda da última volta
       const rg = g.createRadialGradient(44, 40, 4, 64, 64, 70); rg.addColorStop(0, 'rgba(255,220,170,.35)'); rg.addColorStop(1, 'rgba(0,0,0,.2)'); g.fillStyle = rg; g.fillRect(0, 0, 128, 128);
       return tex(c);
     })();
@@ -597,6 +603,68 @@
       const gl = new T.Mesh(new T.PlaneGeometry(VU_W + 0.7, VU_H + 0.4), M.glass); gl.position.set(cx, VU_Y, ZF + 0.72); deck.add(gl);
       vu[ch] = { piv, x: 0, v: 0, tgt: 0, shown: 99 };
     }
+
+    // ---------- Contador mecânico de fita (4 rodinhas de números); tocar nele zera
+    const CNT_N = 4, cDigits = [];
+    {
+      const dc = canvasOf(64, 640), dg = dc.getContext('2d');
+      dg.fillStyle = '#efe6cf'; dg.fillRect(0, 0, 64, 640);
+      dg.fillStyle = '#17110c'; dg.font = 'bold 50px "Courier New", monospace'; dg.textAlign = 'center'; dg.textBaseline = 'middle';
+      for (let i = 0; i < 10; i++) dg.fillText(String(i), 32, i * 64 + 35);
+      const dtex = tex(dc, { repeat: true, aniso: 8 }); dtex.repeat.set(1, 0.1);
+      const cx0 = 0, cy = 4.35, DW = 0.86, GAP = 0.1, tot = CNT_N * DW + (CNT_N - 1) * GAP;
+      const frame = mesh(plateGeo(tot + 0.9, 1.9, 0.3, 0.4, 0.08), M.black, cx0, cy, ZF - 0.02); tag(frame, { type: 'counter' });
+      for (let i = 0; i < CNT_N; i++) {
+        const t = dtex.clone(); t.needsUpdate = true;
+        const m = new T.Mesh(new T.PlaneGeometry(DW, 1.3), new T.MeshBasicMaterial({ map: t, toneMapped: false }));
+        m.position.set(cx0 - tot / 2 + DW / 2 + i * (DW + GAP), cy, ZF + 0.42); deck.add(m); tag(m, { type: 'counter' });
+        cDigits.push({ t, shown: -1 });
+      }
+      const sh = canvasOf(8, 64), sg = sh.getContext('2d'), gr = sg.createLinearGradient(0, 0, 0, 64);
+      gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(0.3, 'rgba(0,0,0,0)'); gr.addColorStop(0.7, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.55)'); sg.fillStyle = gr; sg.fillRect(0, 0, 8, 64);
+      const shade = new T.Mesh(new T.PlaneGeometry(tot, 1.3), new T.MeshBasicMaterial({ map: tex(sh), transparent: true, depthWrite: false, toneMapped: false })); shade.position.set(cx0, cy, ZF + 0.46); deck.add(shade);
+      const cg = new T.Mesh(new T.PlaneGeometry(tot + 0.5, 1.5), M.glass); cg.position.set(cx0, cy, ZF + 0.6); deck.add(cg); tag(cg, { type: 'counter' });
+    }
+    let counterZero = 0;
+
+    // ---------- Reflexo da janela do quarto passando devagar pelos vidros
+    const streaks = [];
+    {
+      const rc = canvasOf(1024, 256), rg = rc.getContext('2d');
+      for (const [x, w, a] of [[150, 100, 0.55], [280, 56, 0.35], [560, 130, 0.5], [740, 48, 0.3]]) {
+        const gr = rg.createLinearGradient(x, 0, x + w, 0);
+        gr.addColorStop(0, 'rgba(255,250,235,0)'); gr.addColorStop(0.3, `rgba(255,250,235,${a})`); gr.addColorStop(0.7, `rgba(255,250,235,${a})`); gr.addColorStop(1, 'rgba(255,250,235,0)');
+        rg.setTransform(1, 0, -0.55, 1, 140, 0); rg.fillStyle = gr; rg.fillRect(x, 0, w, 256);
+      }
+      const base = tex(rc, { repeat: true }); base.repeat.set(0.5, 1);
+      [[DOOR_W - 2, DOOR_H - 2, 0, DOOR_Y, ZF + 1.74, 0], [25, 6.2, 0, DIAL_Y, ZF + 1.07, 0.3], [VU_W + 0.7, VU_H + 0.4, -19.4, VU_Y, ZF + 0.74, 0.55], [VU_W + 0.7, VU_H + 0.4, 19.4, VU_Y, ZF + 0.74, 0.65]].forEach(([w, h, x, y, z, ph]) => {
+        const t = base.clone(); t.needsUpdate = true;
+        const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ map: t, transparent: true, opacity: 0.5, blending: T.AdditiveBlending, depthWrite: false, toneMapped: false }));
+        m.position.set(x, y, z); m.renderOrder = 2; deck.add(m); streaks.push({ t, m, ph });
+      });
+    }
+    const sweepLight = new T.DirectionalLight(0xfff0d8, 0.55); sweepLight.position.set(-60, 26, 40); scene.add(sweepLight);
+
+    // ---------- Antena telescópica: puxar para cima estica, arrastar de lado inclina
+    const ANT_X = 25.5, ANT_Z = -3.2, SEG = 3.6, STEP = 2.0;
+    const ant = new T.Group(); ant.position.set(ANT_X, TOP, ANT_Z); deck.add(ant);
+    const antSt = { e: 0.45, tilt: 0.3, w: 0, v: 0, hiss: -1 };
+    try { const a = JSON.parse(localStorage.getItem('antenna') || 'null'); if (a) { antSt.e = Math.max(0, Math.min(1, a.e)); antSt.tilt = Math.max(-0.9, Math.min(0.9, a.tilt)); } } catch { /* sem armazenamento */ }
+    const antPivot = new T.Group(); ant.add(antPivot);
+    mesh(new T.CylinderGeometry(1.1, 1.4, 0.9, 28), M.dark, ANT_X, TOP + 0.35, ANT_Z);
+    mesh(new T.SphereGeometry(0.75, 20, 14), M.steel, 0, 0.35, 0, ant);
+    const antSegs = [0.36, 0.3, 0.24, 0.18].map((r, i) => {
+      const g = new T.Mesh(new T.CylinderGeometry(r, r, SEG, 16).translate(0, SEG / 2, 0), i === 0 ? M.chrome : M.steel); g.castShadow = true; antPivot.add(g); return g;
+    });
+    const antTip = new T.Mesh(new T.SphereGeometry(0.34, 16, 12), M.chrome); antPivot.add(antTip);
+    const antHit = new T.Mesh(new T.CylinderGeometry(1.3, 1.3, 13, 8).translate(0, 6.5, 0), new T.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); antPivot.add(antHit);
+    tag(antHit, { type: 'antenna' });
+    function poseAntenna() {
+      antSegs.forEach((g, i) => { g.position.y = i * STEP * antSt.e + (i ? 0.3 : 0.5); });
+      antTip.position.y = 3 * STEP * antSt.e + 0.3 + SEG + 0.1;
+      antPivot.rotation.z = -(antSt.tilt + antSt.w); antPivot.rotation.x = -0.12;
+    }
+    poseAntenna();
 
     // ---------- Teclas (teclado de piano, cor de creme)
     const iconCanvases = {};
@@ -783,6 +851,30 @@
       try { g.drawImage(im, (im.width - sw) / 2, (im.height - sh) / 2, sw, sh, x, y, w, h); } catch { /* sem imagem */ }
     }
     const artImg = () => customImg || coverImg;
+    // canetas: cada fita pode ser escrita com marcador, esferográfica ou lápis (com leve borrão)
+    const PENS = {
+      marcador: (s) => `400 ${s}px "Permanent Marker", "Segoe Print", cursive`,
+      esfero: (s) => `600 ${Math.round(s * 1.28)}px Caveat, "Segoe Print", cursive`,
+      lapis: (s) => `400 ${Math.round(s * 1.5)}px "Reenie Beanie", "Segoe Print", cursive`,
+    };
+    const PEN_INK = { esfero: '#1c3fb0', lapis: '#4b4b55' };
+    const penFont = (s) => (PENS[tapeMeta.pen] || PENS.marcador)(s);
+    const penCanvas = canvasOf(640, 248);
+    function penText(g, size, color, draw) {
+      const pen = tapeMeta.pen || 'marcador', tg = penCanvas.getContext('2d');
+      tg.setTransform(1, 0, 0, 1, 0, 0); tg.clearRect(0, 0, 640, 248);
+      tg.save(); tg.font = penFont(size); tg.textBaseline = 'alphabetic'; tg.textAlign = 'left'; tg.fillStyle = PEN_INK[pen] || color;
+      draw(tg); tg.restore();
+      if (pen === 'lapis') {           // grafite falhado
+        tg.globalCompositeOperation = 'destination-out';
+        for (let i = 0; i < 900; i++) { tg.fillStyle = `rgba(0,0,0,${0.25 + Math.random() * 0.5})`; tg.fillRect(Math.random() * 640, Math.random() * 248, 1 + Math.random() * 2, 1 + Math.random()); }
+        tg.globalCompositeOperation = 'source-over';
+      }
+      g.save();
+      g.globalAlpha = pen === 'lapis' ? 0.2 : 0.3; g.shadowColor = PEN_INK[pen] || color; g.shadowBlur = 5; g.drawImage(penCanvas, 1.4, 1.2);   // borrão
+      g.shadowBlur = 0; g.globalAlpha = pen === 'lapis' ? 0.82 : 1; g.drawImage(penCanvas, 0, 0);
+      g.restore();
+    }
     function placeholderArt(g, ax, ay, as) {
       const lg = g.createLinearGradient(ax, ay, ax + as, ay + as); lg.addColorStop(0, PINK); lg.addColorStop(1, PURPLE);
       g.fillStyle = lg; g.fillRect(ax, ay, as, as);
@@ -800,8 +892,7 @@
         g.fillStyle = '#fffdf6'; rr2d(g, 22, 40, w - 44, 168, 16); g.fill();
         g.fillStyle = hexMix(c1, '#000000', 0.45); g.fillRect(22, 40, w - 44, 14);
         if (im) drawCover(g, im, 40, 66, 128, 128); else placeholderArt(g, 40, 66, 128);
-        g.fillStyle = '#1a1033'; g.font = '400 52px "Permanent Marker", "Segoe Print", cursive';
-        wrapText(g, name, 190, 112, 410, 58, 3);
+        penText(g, 52, '#1a1033', (t) => wrapText(t, name, 190, 112, 410, 58, 3));
       } else if (style === 'minimal') {
         g.fillStyle = '#f7f3ea'; g.fillRect(0, 0, w, h);
         g.fillStyle = c1; g.beginPath(); g.arc(46, 44, 14, 0, 7); g.fill();
@@ -826,14 +917,14 @@
         if (im) { g.save(); g.shadowBlur = 0; g.beginPath(); g.rect(36, 52, 150, 150); g.clip(); drawCover(g, im, 36, 52, 150, 150); g.restore(); }
         else { g.shadowBlur = 0; placeholderArt(g, 36, 52, 150); }
         g.shadowColor = c1; g.shadowBlur = 18; g.strokeStyle = c1; g.lineWidth = 4; g.strokeRect(36, 52, 150, 150);
-        g.fillStyle = hexMix(c1, '#ffffff', 0.7); g.font = '400 54px "Permanent Marker", "Segoe Print", cursive';
+        g.fillStyle = hexMix(c1, '#ffffff', 0.7); g.font = penFont(54);
         wrapText(g, name, 214, 112, 390, 60, 3); g.shadowBlur = 0;
       } else if (style === 'foto' && im) {
         drawCover(g, im, 0, 0, w, h);
         const vg = g.createLinearGradient(0, 40, 0, h); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.78)');
         g.fillStyle = vg; g.fillRect(0, 0, w, h);
         g.fillStyle = c1; g.fillRect(0, 0, w, 10);
-        g.fillStyle = '#fff'; g.font = '400 54px "Permanent Marker", "Segoe Print", cursive'; g.shadowColor = 'rgba(0,0,0,.7)'; g.shadowBlur = 8;
+        g.fillStyle = '#fff'; g.font = penFont(54); g.shadowColor = 'rgba(0,0,0,.7)'; g.shadowBlur = 8;
         wrapText(g, name, 28, 180, 584, 58, 2); g.shadowBlur = 0;
       } else drawClassic(name, color);
       labelTex.needsUpdate = true;
@@ -847,10 +938,7 @@
       const ax = 26, ay = 56, as = 160;
       g.fillStyle = '#1a1033'; g.fillRect(ax - 5, ay - 5, as + 10, as + 10);
       if (artImg()) drawCover(g, artImg(), ax, ay, as, as); else placeholderArt(g, ax, ay, as);
-      g.save(); g.translate(224, 0); g.rotate(-0.025);
-      g.fillStyle = '#2a1466'; g.font = '400 56px "Permanent Marker", "Segoe Print", cursive'; g.textBaseline = 'alphabetic';
-      wrapText(g, name, 0, 110, 396, 62, 3);
-      g.restore();
+      penText(g, 56, '#2a1466', (t) => { t.translate(224, 0); t.rotate(-0.025); wrapText(t, name, 0, 110, 396, 62, 3); });
     }
     function loadCustom(src) {
       customSrc = src; customImg = null;
@@ -870,7 +958,7 @@
     // ------------------------------------------------------------ estado lido do player
     const tapeEl = document.querySelector('.tape'), doorEl = document.querySelector('.door');
     const st = { sig: '', labelDirty: true, dialKey: '' };
-    let tapeMeta = { key: null, ver: null, style: '', img: '', wear: 0 };
+    var tapeMeta = { key: null, ver: null, style: '', pen: '', img: '', wear: 0 };
     let S = null;
     function readState() {
       const now = $('now');
@@ -936,7 +1024,7 @@
     let camDist = 100, quality = 'high';
     // Afasta a câmera quando a caixa girada ou inclinada passaria da borda do quadro
     const fitPts = [];
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (const y of [FLOOR, TOP + 6.6]) fitPts.push(new T.Vector3(sx * (W / 2), y, sz * (D / 2)));
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (const y of [FLOOR, TOP + 9.8]) fitPts.push(new T.Vector3(sx * (W / 2), y, sz * (D / 2)));
     const tmp = new T.Vector3();
     let dist = 0;
     const zoom = { v: 1, shown: 1 };
@@ -1030,6 +1118,8 @@
           if (act.id === 'btn-prev' || act.id === 'btn-next') ctl.holdT = setTimeout(() => startScrub(act.id === 'btn-next' ? 1 : -1), 420);
         }
         if (act.type === 'switch') { switches[act.id].held = true; window.Sfx?.sw(); }
+        if (act.type === 'counter') { counterZero = posClock; window.Sfx?.key(); }
+        if (act.type === 'antenna') { ctl.e0 = antSt.e; ctl.t0 = antSt.tilt; ctl.tickAt = antSt.e; window.Sfx?.tick(); }
         if (act.type === 'knob' && act.name === 'tune') tuneDrag = true;
         if (act.type === 'knob') window.Sfx?.tick();
         interacting = true; dirty = true; return;
@@ -1039,6 +1129,12 @@
     });
     document.addEventListener('pointermove', (e) => {
       if (ctl) {
+        if (ctl.act.type === 'antenna') {
+          antSt.e = Math.max(0, Math.min(1, ctl.e0 + (ctl.y - e.clientY) / 150));
+          antSt.tilt = Math.max(-0.9, Math.min(0.9, ctl.t0 + (e.clientX - ctl.x) / 220));
+          if (Math.abs(antSt.e - ctl.tickAt) > 0.12) { ctl.tickAt = antSt.e; window.Sfx?.tick(); }
+          dirty = true;
+        }
         if (ctl.act.type === 'knob') {
           const k = knobs[ctl.act.name];
           const d = ((ctl.y - e.clientY) + (e.clientX - ctl.x)) / 170;
@@ -1072,6 +1168,7 @@
       if (ctl) {
         const c = ctl; ctl = null; interacting = false;
         clearTimeout(c.holdT);
+        if (c.act.type === 'antenna') { try { localStorage.setItem('antenna', JSON.stringify({ e: antSt.e, tilt: antSt.tilt })); } catch { /* sem armazenamento */ } }
         if (c.scrub) stopScrub();
         if (c.act.type === 'key') { keys[c.act.id].held = false; window.Sfx?.keyUp(); }
         if (c.act.type === 'switch') switches[c.act.id].held = false;
@@ -1126,7 +1223,7 @@
     }
 
     const lerp = (a, b, k) => a + (b - a) * k;
-    let last = performance.now(), lastRender = 0, slowFrames = 0, sampled = 0, dropGlow = 0, thump = 0, reelAngle = 0, posClock = 0, ribFlut = 0, ribShown = "", trackKey = '', bpm = 110;
+    let last = performance.now(), lastRender = 0, slowFrames = 0, sampled = 0, dropGlow = 0, thump = 0, reelAngle = 0, posClock = 0, lastSweep = 0, ribFlut = 0, ribShown = "", trackKey = '', bpm = 110;
     function frame(now) {
       requestAnimationFrame(frame);
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -1140,7 +1237,7 @@
       // dados da fita colocada: estilo do rótulo, imagem própria e desgaste (guardados no navegador pelo app.js)
       if (s.tapeKey !== tapeMeta.key || s.tapeVer !== tapeMeta.ver) {
         const m = (window.TapeStore && s.tapeKey && window.TapeStore.get(s.tapeKey)) || {};
-        tapeMeta = { key: s.tapeKey, ver: s.tapeVer, style: m.style || '', img: m.img || '', wear: Math.min(1, (m.plays || 0) / 25) };
+        tapeMeta = { key: s.tapeKey, ver: s.tapeVer, style: m.style || '', pen: m.pen || '', img: m.img || '', wear: Math.min(1, (m.plays || 0) / 25) };
         if (tapeMeta.img !== customSrc) loadCustom(tapeMeta.img);
         applyWear(tapeMeta.wear, s.tapeKey); st.labelDirty = true; dirty = true;
       }
@@ -1151,7 +1248,7 @@
       const curText = tuning ? fmtTime(tuneV * parseTime(s.dur)) : s.cur;
       const dialKey = [s.title, s.artist, curText, s.dur, ratio.toFixed(3)].join('|');
       if (dialKey !== st.dialKey) { st.dialKey = dialKey; drawDial(s, curText, ratio); }
-      const lk = (s.tapeName !== 'Sem fita' ? s.tapeName : s.title) + '|' + (coverImg ? 1 : 0) + '|' + (customImg ? 1 : 0) + '|' + tapeMeta.style + '|' + s.tapeColor;
+      const lk = (s.tapeName !== 'Sem fita' ? s.tapeName : s.title) + '|' + (coverImg ? 1 : 0) + '|' + (customImg ? 1 : 0) + '|' + tapeMeta.style + '|' + tapeMeta.pen + '|' + s.tapeColor;
       if (lk !== st.labelKey || st.labelDirty) { st.labelKey = lk; st.labelDirty = false; drawLabel(s.tapeName !== 'Sem fita' ? s.tapeName : s.title, s.tapeColor, tapeMeta.style); }
 
       // 3) animações
@@ -1237,10 +1334,35 @@
       if (!night.init) { night.init = true; applyNight(night.cur, 1); dirty = true; }
       if (Math.abs(night.tgt - night.cur) > 0.003) { night.cur = lerp(night.cur, night.tgt, Math.min(1, dt * 3.2)); applyNight(night.cur, 1); moving = true; }
       else if (night.cur !== night.tgt) { night.cur = night.tgt; applyNight(night.cur, 1); moving = true; }
-      if (night.cur > 0) {
-        const np = 1 + (s.playing && !s.muted ? 0.16 * kick * Math.max(0.25, s.vol) : 0);
-        dialLight.intensity = night.cur * 420 * np; vuLights.forEach((l) => { l.intensity = night.cur * 150 * np; });
-        if (s.playing) moving = true;
+      {
+        const np = 1 + (s.playing && !s.muted ? 0.16 * kick * Math.max(0.25, s.vol) : 0), nk = night.cur;
+        dialLight.intensity = (nk * 420 + (1 - nk) * 40) * np; vuLights.forEach((l) => { l.intensity = (nk * 150 + (1 - nk) * 14) * np; });
+        if (nk > 0 && s.playing) moving = true;
+      }
+      // contador mecânico: uma contagem a cada ~1,1 s de fita; cada rodinha gira na vez (a de cima só rola quando a de baixo passa do 9)
+      {
+        const cv = Math.max(0, (posClock - counterZero) / 1.1) % 10000;
+        for (let i = 0; i < CNT_N; i++) {
+          const p = Math.pow(10, i), base = Math.floor(cv / p) % 10, low = i ? (cv / (p / 10)) % 10 : 0;
+          const x = i === 0 ? cv % 10 : base + (low >= 9 ? low - 9 : 0), dg = cDigits[i];
+          if (Math.abs(x - dg.shown) > 0.004) { dg.shown = x; dg.t.offset.y = 0.9 - x * 0.1; }
+        }
+      }
+      // reflexo da janela: passa devagar pelos vidros e pelo corpo (só desenha ~8 vezes por segundo)
+      sweepLight.position.x = -60 * Math.cos(now / 9000); sweepLight.position.y = 26 + 8 * Math.sin(now / 13000);
+      sweepLight.intensity = 0.55 * (1 - 0.92 * night.cur);
+      for (const r of streaks) { r.t.offset.x = ((now / 1000) * 0.012 + r.ph) % 1; r.m.material.opacity = 0.5 - 0.36 * night.cur; }
+      if (now - lastSweep > 125 && quality === 'high' && !document.hidden) { lastSweep = now; moving = true; }
+      // antena: balança no ritmo do grave (mais quando está esticada e com o volume alto) e o chiado de rádio cai com ela esticada
+      {
+        const beatSign = Math.floor(beat) % 2 ? 1 : -1, drive = s.playing && !s.muted ? beatSign * kick * 0.07 * s.vol * (0.4 + antSt.e) : 0;
+        let rem = Math.min(dt, 0.1);
+        while (rem > 0) { const h = Math.min(rem, 1 / 120); rem -= h; antSt.v += (120 * (drive - antSt.w) - 6 * antSt.v) * h; antSt.w += antSt.v * h; }
+        if (Math.abs(antSt.w) < 0.0004 && Math.abs(antSt.v) < 0.004 && !drive) { antSt.w = 0; antSt.v = 0; } else moving = true;
+        poseAntenna();
+        const q = 1 - Math.min(1, Math.abs(antSt.tilt - 0.35) / 0.9);
+        const hiss = s.playing && !s.muted ? 0.035 * (1 - 0.92 * antSt.e * q) : 0;
+        if (Math.abs(hiss - antSt.hiss) > 0.0015) { antSt.hiss = hiss; window.Sfx?.hiss(hiss); }
       }
       // medidores de nível: dançam no ritmo enquanto toca (simulados, o Spotify não entrega o áudio)
       const live = s.playing && !s.muted && s.vol > 0;
@@ -1299,6 +1421,7 @@
     document.addEventListener('fullscreenchange', refit);
     window.visualViewport?.addEventListener('resize', refit);
     new ResizeObserver(refit).observe(canvas);
+    ['600 40px Caveat', '40px "Reenie Beanie"', '40px "Permanent Marker"'].forEach((f) => document.fonts?.load(f).then(() => { st.labelKey = ''; dirty = true; }).catch(() => {}));
     document.fonts?.ready.then(() => { st.sig = ''; st.dialKey = ''; st.labelKey = ''; dirty = true; });
     document.addEventListener('visibilitychange', () => { dirty = true; });
     addEventListener('scroll', () => { dirty = true; }, { passive: true });

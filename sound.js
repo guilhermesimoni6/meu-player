@@ -2,7 +2,7 @@
    Só tocam depois de um toque ou clique, como os navegadores exigem. */
 (() => {
   'use strict';
-  let ctx = null, master = null, on = true, wind = null;
+  let ctx = null, master = null, on = true, wind = null, hiss = null;
   try { on = localStorage.getItem('sfx') !== 'off'; } catch { /* sem armazenamento */ }
 
   const audio = () => {
@@ -78,6 +78,19 @@
       w.g.gain.cancelScheduledValues(t); w.g.gain.setValueAtTime(Math.max(0.0001, w.g.gain.value), t); w.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
       w.stop();
       noise(ctx, { t: 0.14, dur: 0.012, f: 1800, gain: 0.3 }); tone(ctx, { t: 0.14, f: 130, f2: 70, dur: 0.06, gain: 0.35, type: 'triangle' });
+    },
+    // chiado de rádio de fundo (a antena recolhida deixa o chiado mais alto)
+    hiss: (level) => {
+      const c = audio();
+      if (!c) { if (hiss) hiss.g.gain.value = 0; return; }
+      if (!hiss) {
+        if (level < 0.002) return;
+        const src = c.createBufferSource(); src.buffer = noiseBuf(c, 2); src.loop = true;
+        const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2500;
+        const g = ctx.createGain(); g.gain.value = 0; src.connect(hp); hp.connect(g); g.connect(master); src.start();
+        hiss = { g };
+      }
+      hiss.g.gain.setTargetAtTime(on ? Math.max(0, level) : 0, ctx.currentTime, 0.25);
     },
     enabled: () => on,
     setEnabled(v) {

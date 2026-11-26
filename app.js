@@ -443,7 +443,17 @@
     });
     [...cards.filter((c) => c.classList.contains('pinned')), ...cards.filter((c) => !c.classList.contains('pinned'))].forEach((c) => box.append(c));
   }
-  const ed = { card: null, color: '', style: 'classico', img: '', fresh: false };
+  const TAPE_PENS = [['marcador', 'Marcador'], ['esfero', 'Esferográfica'], ['lapis', 'Lápis']];
+  const ed = { card: null, color: '', style: 'classico', pen: 'marcador', img: '', fresh: false };
+  function drawPens() {
+    const wrap = $('td-pens'); wrap.innerHTML = '';
+    TAPE_PENS.forEach(([id, label]) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = label; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(ed.pen === id));
+      b.onclick = () => { ed.pen = id; drawPens(); };
+      wrap.append(b);
+    });
+  }
   function drawStyles() {
     const wrap = $('td-styles'); wrap.innerHTML = '';
     TAPE_STYLES.forEach(([id, label]) => {
@@ -493,9 +503,9 @@
   function openEditor(card) {
     const key = card.dataset.key; if (!key) return;
     const t = getTapes()[key] || {};
-    ed.card = card; ed.color = t.color || ''; ed.style = t.style || 'classico'; ed.img = t.img || ''; ed.fresh = false;
+    ed.card = card; ed.color = t.color || ''; ed.style = t.style || 'classico'; ed.pen = t.pen || 'marcador'; ed.img = t.img || ''; ed.fresh = false;
     $('td-name').value = t.name || card.dataset.name; $('td-pin').checked = Boolean(t.pin);
-    drawSwatches(); drawStyles(); drawImgPrev(); drawWear();
+    drawSwatches(); drawStyles(); drawPens(); drawImgPrev(); drawWear();
     const dlg = $('tape-dialog');
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
     $('td-name').focus();
@@ -510,6 +520,7 @@
       if (name && name !== card.dataset.name) t.name = name;
       if (ed.color) t.color = ed.color;
       if (ed.style && ed.style !== 'classico') t.style = ed.style;
+      if (ed.pen && ed.pen !== 'marcador') t.pen = ed.pen;
       if (ed.img) t.img = ed.img;
       if ($('td-pin').checked) t.pin = true;
       if (Object.keys(t).length) all[key] = t; else delete all[key];
@@ -625,6 +636,46 @@
     });
   }
 
+  // ---------- Caixinha de plástico ----------
+  function closeCase(now) {
+    const p = $('jewel-pop'); if (!p) return;
+    if (now) { p.remove(); return; }
+    p.classList.add('leaving'); setTimeout(() => p.remove(), 450);
+  }
+  function openCase(card, go) {
+    closeCase(true);
+    const name = card.querySelector('b').textContent, sub = card.querySelector('small')?.textContent || '';
+    const t = getTapes()[card.dataset.key] || {};
+    const img = t.img || card.querySelector('img')?.getAttribute('src') || '';
+    const pop = document.createElement('div'); pop.id = 'jewel-pop'; pop.className = 'jewel-pop';
+    const box = document.createElement('div'); box.className = 'jewel'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Caixinha da fita ' + name);
+    box.style.cssText = card.style.cssText;
+    const cs = document.createElement('div'); cs.className = 'jw-case';
+    // fita dentro da caixa (a mesma cartela, com as cores personalizadas)
+    const tp = card.cloneNode(true); tp.classList.remove('playing', 'lifted', 'carried', 'flying'); tp.classList.add('jw-tape');
+    tp.removeAttribute('style'); tp.style.cssText = card.style.cssText; tp.title = 'Colocar no toca-fitas';
+    tp.onclick = () => { go(tp); closeCase(); };
+    // tampa transparente com o encarte (capa e nome) preso nela
+    const lid = document.createElement('div'); lid.className = 'jw-lid';
+    const face = document.createElement('div'); face.className = 'jw-face';
+    if (img) face.style.backgroundImage = 'url(' + JSON.stringify(img) + ')'; else face.classList.add('ph');
+    const ttl = document.createElement('div'); ttl.className = 'jw-ttl';
+    const b = document.createElement('b'); b.textContent = name; const s = document.createElement('small'); s.textContent = sub;
+    ttl.append(b, s); face.append(ttl);
+    const back = document.createElement('div'); back.className = 'jw-back';
+    lid.append(face, back);
+    lid.onclick = () => lid.classList.toggle('open');
+    cs.append(tp, lid);
+    const hint = document.createElement('p'); hint.className = 'jw-hint'; hint.textContent = 'Clique na fita para colocar no toca-fitas. Clique na tampa para abrir ou fechar.';
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'jw-close'; x.setAttribute('aria-label', 'Fechar'); x.textContent = '×'; x.onclick = () => closeCase();
+    box.append(cs, hint); pop.append(box, x);
+    pop.addEventListener('pointerdown', (e) => { if (e.target === pop) closeCase(); });
+    document.body.append(pop);
+    setTimeout(() => lid.classList.add('open'), 140);
+    tp.focus({ preventScroll: true });
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCase(); });
+
   function casCard({ img, name, sub, uri, key, onclick, onDrop }) {
     const c = document.createElement('button');
     c.type = 'button'; c.className = 'cas'; c.title = name + ' — arraste até o toca-fitas';
@@ -643,6 +694,8 @@
     c.onclick = () => {
       if (c._dragged) return;
       if (c.closest('.editing')) { openEditor(c); return; } // modo personalizar: abre o editor em vez de tocar
+      // na estante, clicar na lombada abre a caixinha com a fita dentro; clicar na fita é que coloca no aparelho
+      if (c.closest('.rack')) { openCase(c, (from) => { insertTape(c.querySelector('b').textContent, from, c.dataset.key); onclick(); }); return; }
       insertTape(c.querySelector('b').textContent, c, c.dataset.key); onclick();
     };
     // Soltar no toca-fitas toca a fita (a playlist inteira, ou só a música)
