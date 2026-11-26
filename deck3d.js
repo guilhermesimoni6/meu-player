@@ -1337,16 +1337,13 @@
         dialLight.intensity = (nk * 420) * np; vuLights.forEach((l) => { l.intensity = (nk * 150) * np; });
         if (nk > 0 && s.playing) moving = true;
       }
-      // antena: parada (não balança com o grave); o chiado de rádio cai com ela esticada
+      // antena: parada (não balança com o grave)
       {
         const beatSign = Math.floor(beat) % 2 ? 1 : -1, drive = 0;
         let rem = Math.min(dt, 0.1);
         while (rem > 0) { const h = Math.min(rem, 1 / 120); rem -= h; antSt.v += (120 * (drive - antSt.w) - 6 * antSt.v) * h; antSt.w += antSt.v * h; }
         if (Math.abs(antSt.w) < 0.0004 && Math.abs(antSt.v) < 0.004 && !drive) { antSt.w = 0; antSt.v = 0; } else moving = true;
         poseAntenna();
-        const q = 1 - Math.min(1, Math.abs(antSt.tilt - 0.35) / 0.9);
-        const hiss = s.playing && !s.muted ? 0.035 * (1 - 0.92 * antSt.e * q) : 0;
-        if (Math.abs(hiss - antSt.hiss) > 0.0015) { antSt.hiss = hiss; window.Sfx?.hiss(hiss); }
       }
       // medidores de nível: dançam no ritmo enquanto toca (simulados, o Spotify não entrega o áudio)
       const live = s.playing && !s.muted && s.vol > 0;
