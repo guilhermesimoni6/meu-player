@@ -1119,7 +1119,7 @@
         }
         if (act.type === 'switch') { switches[act.id].held = true; window.Sfx?.sw(); }
         if (act.type === 'counter') { counterZero = posClock; window.Sfx?.key(); }
-        if (act.type === 'antenna') { ctl.e0 = antSt.e; ctl.t0 = antSt.tilt; ctl.tickAt = antSt.e; window.Sfx?.tick(); }
+        if (act.type === 'antenna') { ctl.e0 = antSt.e; ctl.t0 = antSt.tilt; ctl.tickAt = antSt.e; }
         if (act.type === 'knob' && act.name === 'tune') tuneDrag = true;
         if (act.type === 'knob') window.Sfx?.tick();
         interacting = true; dirty = true; return;
@@ -1132,7 +1132,6 @@
         if (ctl.act.type === 'antenna') {
           antSt.e = Math.max(0, Math.min(1, ctl.e0 + (ctl.y - e.clientY) / 150));
           antSt.tilt = Math.max(-0.9, Math.min(0.9, ctl.t0 + (e.clientX - ctl.x) / 220));
-          if (Math.abs(antSt.e - ctl.tickAt) > 0.12) { ctl.tickAt = antSt.e; window.Sfx?.tick(); }
           dirty = true;
         }
         if (ctl.act.type === 'knob') {
