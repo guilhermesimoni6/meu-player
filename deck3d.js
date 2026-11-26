@@ -879,7 +879,7 @@
     }
 
     const lerp = (a, b, k) => a + (b - a) * k;
-    let last = performance.now(), lastRender = 0, slowFrames = 0, sampled = 0, dropGlow = 0, thump = 0, reelAngle = 0;
+    let last = performance.now(), lastRender = 0, slowFrames = 0, sampled = 0, dropGlow = 0, thump = 0, reelAngle = 0, posClock = 0, trackKey = '', bpm = 110;
     function frame(now) {
       requestAnimationFrame(frame);
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -938,10 +938,17 @@
       } else if (tape.position.z !== TAPE_Z) { tape.position.set(0, DOOR_Y, TAPE_Z); tape.rotation.x = 0; }
       tape.visible = showTape || tapeAnim.mode === 'out';
       // carretéis: giram ao tocar, e a fita passa de um para o outro
-      const spinning = (s.playing ? 2.6 : 0);
+      // relógio suave da faixa (o texto só muda a cada segundo) e andamento próprio de cada música
+      const tp = parseTime(s.cur);
+      if (!s.playing || tp < Math.floor(posClock) || tp > posClock + 1.3) posClock = tp; else posClock += dt;
+      const tkey = s.title + '|' + s.artist;
+      if (tkey !== trackKey) { trackKey = tkey; let h = 2166136261; for (let i = 0; i < tkey.length; i++) h = Math.imul(h ^ tkey.charCodeAt(i), 16777619); bpm = 78 + ((h >>> 0) % 65); }
+      const beat = posClock * bpm / 60, bf = beat - Math.floor(beat);
+      const kick = Math.exp(-7 * bf) * (Math.floor(beat) % 4 === 2 ? 0.8 : 1), hat = Math.exp(-12 * ((beat * 2) % 1));
+      const swell = 0.8 + 0.2 * Math.sin(posClock * 0.31) * Math.sin(posClock * 0.113 + 1);
       reels.forEach((r) => {
         const fast = r.side < 0 ? s.fastL : s.fastR;
-        const sp = fast ? 14 : spinning;
+        const sp = fast ? 14 : (s.playing ? 3.7 / r.r : 0);
         if (sp) { r.hub.rotation.z -= sp * dt * (r.side < 0 ? 1 : 1); moving = true; }
         const wantR = r.side < 0 ? 1.05 + (1 - s.p) * 0.7 : 1.05 + s.p * 0.7;
         if (Math.abs(wantR - r.r) > 0.002) { r.r = lerp(r.r, wantR, Math.min(1, dt * 4)); moving = true; }
@@ -949,8 +956,8 @@
       });
       // alto-falantes pulsam com a música
       if (s.playing) {
-        thump += dt * 3.3; moving = true;
-        const z = 1 + Math.pow(Math.max(0, Math.sin(thump)), 3) * 0.05;
+        thump = 1; moving = true;
+        const z = 1 + kick * 0.065 * swell;
         speakers.forEach((g) => { g.children[2].scale.set(z, z, 0.55 * z); });
       } else if (thump) { thump = 0; speakers.forEach((g) => g.children[2].scale.set(1, 1, 0.55)); dirty = true; }
       // brilho do compartimento ao arrastar uma fita
@@ -959,13 +966,10 @@
       // medidores de nível: dançam no ritmo enquanto toca (simulados, o Spotify não entrega o áudio)
       const live = s.playing && !s.muted && s.vol > 0;
       if (live) {
-        vuT += dt;
-        if (now > vuNext) {
-          vuNext = now + 65 + Math.random() * 70;
-          for (const [ch, ph] of [['L', 0], ['R', 1.3]]) {
-            const base = 0.28 + 0.46 * Math.abs(Math.sin(vuT * (ch === 'L' ? 3.1 : 2.7) + ph));
-            vu[ch].tgt = Math.min(1, (base + Math.random() * 0.3) * (0.55 + 0.45 * s.vol));
-          }
+        const lvl = 0.2 + 0.5 * kick + 0.2 * hat;
+        for (const [ch, ph] of [['L', 0], ['R', 1.3]]) {
+          const j = 0.9 + 0.1 * Math.sin(posClock * (ch === 'L' ? 7.3 : 6.1) + ph);
+          vu[ch].tgt = Math.min(1, lvl * swell * j * 1.3 * (0.55 + 0.45 * s.vol));
         }
       } else { vu.L.tgt = 0; vu.R.tgt = 0; }
       for (const ch of ['L', 'R']) {
