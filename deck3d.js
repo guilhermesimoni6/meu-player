@@ -42,6 +42,27 @@
     markFinish();
   }
 
+  // ---------------------------------------------------------------- andamento real (ReccoBeats)
+  // O Spotify bloqueou os dados de ritmo para este app. O ReccoBeats devolve o BPM e a energia pelo ID da faixa,
+  // sem chave. Só o ID público da música é enviado. Resultado guardado no navegador; 0 = sem dados para a faixa.
+  let tempoCache = {};
+  try { tempoCache = JSON.parse(localStorage.getItem('tempo') || '{}') || {}; } catch { tempoCache = {}; }
+  const tempoPending = new Set();
+  function fetchTempo(id) {
+    if (!id || id in tempoCache || tempoPending.has(id) || !/^[A-Za-z0-9]{22}$/.test(id)) return;
+    tempoPending.add(id);
+    fetch('https://api.reccobeats.com/v1/audio-features?ids=' + id)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('status ' + r.status))))
+      .then((j) => {
+        const f = j && j.content && j.content[0];
+        tempoCache[id] = f && f.tempo > 0 ? { b: Math.round(f.tempo * 10) / 10, e: typeof f.energy === 'number' ? f.energy : null } : 0;
+        const keys = Object.keys(tempoCache); if (keys.length > 1500) keys.slice(0, 300).forEach((k) => delete tempoCache[k]);
+        try { localStorage.setItem('tempo', JSON.stringify(tempoCache)); } catch { /* sem armazenamento */ }
+      })
+      .catch(() => { /* sem rede ou serviço fora do ar: segue com o ritmo simulado e tenta de novo na próxima vez */ })
+      .finally(() => tempoPending.delete(id));
+  }
+
   // ---------------------------------------------------------------- modo noite
   const night = { tgt: 0, cur: 0 };
   const nightBtn = $('btn-night');
@@ -953,7 +974,7 @@
         pausedOn: $('btn-pause').dataset.state === 'on',
         vol: Number($('vol').value) / 100, muted: $('btn-mute').classList.contains('is-muted'),
         shuffle: $('btn-shuffle').getAttribute('aria-pressed') === 'true', repeat: $('btn-repeat').dataset.mode || 'off',
-        cover: $('cover').getAttribute('src') || '', tapeName: $('tape-name').textContent, tapeColor: $('tape-name').dataset.k || '', tapeKey: $('tape-name').dataset.key || '', tapeVer: $('tape-name').dataset.v || '',
+        cover: $('cover').getAttribute('src') || '', tapeName: $('tape-name').textContent, tapeColor: $('tape-name').dataset.k || '', tapeKey: $('tape-name').dataset.key || '', tid: $('now').dataset.tid || '', tapeVer: $('tape-name').dataset.v || '',
         empty: tapeEl.classList.contains('empty'), hide: tapeEl.style.opacity === '0',
         drop: doorEl.classList.contains('drop-ready'),
         fastL: $('reel-l').classList.contains('fast'), fastR: $('reel-r').classList.contains('fast'),
@@ -1205,6 +1226,7 @@
     }
 
     const lerp = (a, b, k) => a + (b - a) * k;
+    let tempoNow = null;
     let last = performance.now(), lastRender = 0, slowFrames = 0, sampled = 0, dropGlow = 0, thump = 0, reelAngle = 0, posClock = 0, lastSweep = 0, ribFlut = 0, ribShown = "", trackKey = '', bpm = 110;
     function frame(now) {
       requestAnimationFrame(frame);
@@ -1276,7 +1298,10 @@
       const tp = parseTime(s.cur);
       if (!s.playing || tp < Math.floor(posClock) || tp > posClock + 1.3) posClock = tp; else posClock += dt;
       const tkey = s.title + '|' + s.artist;
-      if (tkey !== trackKey) { trackKey = tkey; let h = 2166136261; for (let i = 0; i < tkey.length; i++) h = Math.imul(h ^ tkey.charCodeAt(i), 16777619); bpm = 78 + ((h >>> 0) % 65); }
+      if (tkey !== trackKey) { trackKey = tkey; tempoNow = null; let h = 2166136261; for (let i = 0; i < tkey.length; i++) h = Math.imul(h ^ tkey.charCodeAt(i), 16777619); bpm = 78 + ((h >>> 0) % 65); fetchTempo(s.tid); }
+      // andamento e energia reais (ReccoBeats), quando existirem para esta faixa
+      if (!tempoNow && s.tid && tempoCache[s.tid]) { tempoNow = tempoCache[s.tid]; let b = tempoNow.b; while (b > 170) b /= 2; while (b < 70) b *= 2; bpm = b; }
+      const enMul = tempoNow && tempoNow.e != null ? 0.65 + 0.7 * tempoNow.e : 1;
       const beat = posClock * bpm / 60, bf = beat - Math.floor(beat);
       const kick = Math.exp(-7 * bf) * (Math.floor(beat) % 4 === 2 ? 0.8 : 1), hat = Math.exp(-12 * ((beat * 2) % 1));
       const swell = 0.8 + 0.2 * Math.sin(posClock * 0.31) * Math.sin(posClock * 0.113 + 1);
@@ -1305,7 +1330,7 @@
       if (s.playing) {
         thump = 1; moving = true;
         // amplitude proporcional ao volume: baixo = quase parado, alto = cone bem solto
-        const amp = s.muted ? 0 : 0.004 + 0.12 * Math.pow(s.vol, 1.4);
+        const amp = s.muted ? 0 : (0.004 + 0.12 * Math.pow(s.vol, 1.4)) * enMul;
         const z = 1 + kick * amp * swell;
         speakers.forEach((g) => { g.children[2].scale.set(z, z, 0.55 * z); });
       } else if (thump) { thump = 0; speakers.forEach((g) => g.children[2].scale.set(1, 1, 0.55)); dirty = true; }
@@ -1344,7 +1369,7 @@
       // medidores de nível: dançam no ritmo enquanto toca (simulados, o Spotify não entrega o áudio)
       const live = s.playing && !s.muted && s.vol > 0;
       if (live) {
-        const lvl = 0.2 + 0.5 * kick + 0.2 * hat;
+        const lvl = (0.2 + 0.5 * kick + 0.2 * hat) * enMul;
         for (const [ch, ph] of [['L', 0], ['R', 1.3]]) {
           const j = 0.9 + 0.1 * Math.sin(posClock * (ch === 'L' ? 7.3 : 6.1) + ph);
           vu[ch].tgt = Math.min(1, lvl * swell * j * 1.3 * (0.55 + 0.45 * s.vol));

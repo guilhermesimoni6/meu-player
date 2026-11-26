@@ -169,6 +169,7 @@
     if (!s) return;
     const t = s.track_window.current_track;
     currentUri = t.uri;
+    $('now').dataset.tid = /^spotify:track:/.test(t.uri || '') ? t.uri.split(':')[2] : ''; // o 3D usa o ID para buscar o BPM
     $('title').textContent = t.name;
     $('artist').textContent = t.artists.map((a) => a.name).join(', ');
     document.title = t.name + ' · ' + t.artists[0].name;
