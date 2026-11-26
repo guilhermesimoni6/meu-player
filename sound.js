@@ -2,7 +2,7 @@
    Só tocam depois de um toque ou clique, como os navegadores exigem. */
 (() => {
   'use strict';
-  let ctx = null, master = null, on = true;
+  let ctx = null, master = null, on = true, wind = null;
   try { on = localStorage.getItem('sfx') !== 'off'; } catch { /* sem armazenamento */ }
 
   const audio = () => {
@@ -56,6 +56,29 @@
       noise(c, { dur: 0.26, type: 'bandpass', f: 500, f2: 1500, q: 1.4, gain: 0.16 });
       noise(c, { t: 0.02, dur: 0.02, f: 1400, gain: 0.4 }); tone(c, { t: 0.02, f: 100, f2: 50, dur: 0.09, gain: 0.5, type: 'triangle' });
     }),
+    // som contínuo de fita correndo (avançar ou voltar) enquanto o botão fica apertado
+    windStart: (dir) => play((c) => {
+      if (wind) return;
+      const t = c.currentTime, src = c.createBufferSource(); src.buffer = noiseBuf(c, 1.4); src.loop = true;
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.8;
+      const f0 = dir > 0 ? 900 : 1700, f1 = dir > 0 ? 2300 : 2600;
+      bp.frequency.setValueAtTime(f0, t); bp.frequency.exponentialRampToValueAtTime(f1, t + 2.5);
+      const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.26, t + 0.14);
+      const motor = c.createOscillator(); motor.type = 'sawtooth'; motor.frequency.setValueAtTime(dir > 0 ? 110 : 140, t);
+      motor.frequency.exponentialRampToValueAtTime(dir > 0 ? 190 : 230, t + 2);
+      const mg = c.createGain(); mg.gain.value = 0.05;
+      const lfo = c.createOscillator(); lfo.frequency.value = 11; const lg = c.createGain(); lg.gain.value = 260; lfo.connect(lg); lg.connect(bp.frequency);
+      src.connect(bp); bp.connect(g); g.connect(master); motor.connect(mg); mg.connect(g);
+      src.start(t); motor.start(t); lfo.start(t);
+      wind = { g, stop: () => { src.stop(c.currentTime + 0.2); motor.stop(c.currentTime + 0.2); lfo.stop(c.currentTime + 0.2); } };
+    }),
+    windStop: () => {
+      if (!wind || !ctx) { wind = null; return; }
+      const w = wind; wind = null; const t = ctx.currentTime;
+      w.g.gain.cancelScheduledValues(t); w.g.gain.setValueAtTime(Math.max(0.0001, w.g.gain.value), t); w.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+      w.stop();
+      noise(ctx, { t: 0.14, dur: 0.012, f: 1800, gain: 0.3 }); tone(ctx, { t: 0.14, f: 130, f2: 70, dur: 0.06, gain: 0.35, type: 'triangle' });
+    },
     enabled: () => on,
     setEnabled(v) {
       on = Boolean(v);

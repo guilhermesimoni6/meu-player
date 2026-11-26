@@ -15,13 +15,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Space+Mono:wght@400;700&display=swap">
-<link rel="stylesheet" href="style.css?v=24">
+<link rel="stylesheet" href="style.css?v=26">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <defs>
     <symbol id="i-tape" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><circle cx="8.5" cy="11" r="2.2"/><circle cx="15.5" cy="11" r="2.2"/><path d="M7 19l1.6-3.2h6.8L17 19"/></g></symbol>
     <symbol id="i-note" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></g></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></symbol>
     <symbol id="i-palette" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 1.6-2.1-.5-1.3.4-2.4 1.8-2.4H18a3 3 0 0 0 3-3C21 7 17 3 12 3z"/><circle cx="7.5" cy="11.5" r="1" fill="currentColor"/><circle cx="10.5" cy="7.5" r="1" fill="currentColor"/><circle cx="15.5" cy="8" r="1" fill="currentColor"/></g></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></g></symbol>
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l11-6.8a1 1 0 0 0 0-1.72l-11-6.8A1 1 0 0 0 8 5.2z" fill="currentColor"/></symbol>
@@ -57,6 +58,7 @@
         <button type="button" role="radio" data-finish="vermelho" title="Vermelho" aria-label="Vermelho"></button>
       </div>
     </div>    <button id="btn-sfx" class="shelf-btn" type="button" aria-pressed="true" title="Sons do toca-fitas"><svg aria-hidden="true"><use href="#i-vol"/></svg><span>Sons</span></button>
+    <button id="btn-night" class="shelf-btn" type="button" aria-pressed="false" title="Modo noite: as luzes do aparelho iluminam o corpo"><svg aria-hidden="true"><use href="#i-moon"/></svg><span>Noite</span></button>
     <div class="search">
       <input id="q" type="search" aria-label="Buscar músicas ou artistas" placeholder="Buscar músicas, artistas…" autocomplete="off">
     </div>
@@ -118,6 +120,18 @@
     <h3 id="td-title">Personalizar fita</h3>
     <label class="td-field"><span>Nome na etiqueta</span><input id="td-name" type="text" maxlength="60" autocomplete="off"></label>
     <div class="td-field"><span id="td-color-label">Cor da etiqueta</span><div id="td-colors" class="td-colors" role="radiogroup" aria-labelledby="td-color-label"></div></div>
+    <div class="td-field"><span id="td-style-label">Estilo do rótulo</span><div id="td-styles" class="td-styles" role="radiogroup" aria-labelledby="td-style-label"></div></div>
+    <div class="td-field"><span>Imagem do rótulo</span>
+      <div class="td-img">
+        <div id="td-prev" class="td-prev"></div>
+        <div class="td-imgbtns">
+          <label class="td-ghost td-file">Escolher imagem<input id="td-file" type="file" accept="image/*" hidden></label>
+          <button type="button" id="td-img-del" class="td-ghost" hidden>Remover</button>
+        </div>
+      </div>
+      <small>Também dá para colar uma imagem (Ctrl+V) com esta janela aberta.</small>
+    </div>
+    <p id="td-wear" class="td-wear">Fita nova. <button type="button" id="td-fresh" class="td-ghost" hidden>Zerar desgaste</button></p>
     <label class="td-pin"><input id="td-pin" type="checkbox"> Fixar no começo da estante</label>
     <div class="td-actions">
       <button type="button" id="td-reset" class="td-ghost">Restaurar</button>
@@ -128,10 +142,10 @@
   </form>
 </dialog>
 <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
-<script src="config.js?v=24"></script>
-<script src="app.js?v=24"></script>
-<script src="sound.js?v=24"></script>
-<script src="deck3d.js?v=24"></script>
+<script src="config.js?v=26"></script>
+<script src="app.js?v=26"></script>
+<script src="sound.js?v=26"></script>
+<script src="deck3d.js?v=26"></script>
 <script src="https://sdk.scdn.co/spotify-player.js"></script>
 </body>
 </html>

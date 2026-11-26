@@ -420,7 +420,11 @@
 
   // ---------- Personalizar fitas (nome, cor e fixar), guardado neste navegador ----------
   const getTapes = () => { try { return JSON.parse(LS.get('tapes') || '{}') || {}; } catch { return {}; } };
-  const saveTapes = (o) => LS.set('tapes', JSON.stringify(o));
+  const saveTapes = (o) => { try { localStorage.setItem('tapes', JSON.stringify(o)); return true; } catch { return false; } };
+  // quantas vezes cada fita foi colocada no aparelho (define o desgaste)
+  const getPlays = () => { try { return JSON.parse(LS.get('plays') || '{}') || {}; } catch { return {}; } };
+  const TAPE_STYLES = [['classico', 'Clássico'], ['listras', 'Listras'], ['minimal', 'Minimal'], ['retro', 'Retrô'], ['neon', 'Neon'], ['foto', 'Foto']];
+  window.TapeStore = { get: (k) => ({ ...(getTapes()[k] || {}), plays: getPlays()[k] || 0 }) };
   const TAPE_COLORS = [['', 'Automática'], ['#ff3d81', 'Rosa'], ['#7a3dff', 'Roxo'], ['#00d2ff', 'Ciano'], ['#2fd48a', 'Verde'], ['#ffc23d', 'Amarelo'], ['#ff7a3d', 'Laranja']];
   function applyTapeStyles(box) {
     const tapes = getTapes();
@@ -439,7 +443,42 @@
     });
     [...cards.filter((c) => c.classList.contains('pinned')), ...cards.filter((c) => !c.classList.contains('pinned'))].forEach((c) => box.append(c));
   }
-  const ed = { card: null, color: '' };
+  const ed = { card: null, color: '', style: 'classico', img: '', fresh: false };
+  function drawStyles() {
+    const wrap = $('td-styles'); wrap.innerHTML = '';
+    TAPE_STYLES.forEach(([id, label]) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = label; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(ed.style === id));
+      b.onclick = () => { ed.style = id; drawStyles(); };
+      wrap.append(b);
+    });
+  }
+  function drawImgPrev() {
+    const p = $('td-prev');
+    p.style.backgroundImage = ed.img ? `url("${ed.img}")` : '';
+    p.textContent = ed.img ? '' : 'sem imagem';
+    $('td-img-del').hidden = !ed.img;
+  }
+  function drawWear() {
+    const n = (getPlays()[ed.card?.dataset.key] || 0) * (ed.fresh ? 0 : 1);
+    $('td-wear').firstChild.textContent = n ? `Usada ${n} ${n === 1 ? 'vez' : 'vezes'}. ` : 'Fita nova. ';
+    $('td-fresh').hidden = !n;
+  }
+  // reduz a imagem (lado maior 480 px) e guarda como JPEG pequeno
+  function loadImageBlob(blob) {
+    if (!blob || !blob.type.startsWith('image/')) return;
+    const url = URL.createObjectURL(blob), im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, 480 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k));
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      ed.img = c.toDataURL('image/jpeg', 0.82); drawImgPrev();
+      if (ed.style === 'classico') { ed.style = 'foto'; drawStyles(); }
+    };
+    im.onerror = () => URL.revokeObjectURL(url);
+    im.src = url;
+  }
   function drawSwatches() {
     const wrap = $('td-colors'); wrap.innerHTML = '';
     TAPE_COLORS.forEach(([hex, label]) => {
@@ -454,9 +493,9 @@
   function openEditor(card) {
     const key = card.dataset.key; if (!key) return;
     const t = getTapes()[key] || {};
-    ed.card = card; ed.color = t.color || '';
+    ed.card = card; ed.color = t.color || ''; ed.style = t.style || 'classico'; ed.img = t.img || ''; ed.fresh = false;
     $('td-name').value = t.name || card.dataset.name; $('td-pin').checked = Boolean(t.pin);
-    drawSwatches();
+    drawSwatches(); drawStyles(); drawImgPrev(); drawWear();
     const dlg = $('tape-dialog');
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
     $('td-name').focus();
@@ -470,10 +509,15 @@
       const t = {};
       if (name && name !== card.dataset.name) t.name = name;
       if (ed.color) t.color = ed.color;
+      if (ed.style && ed.style !== 'classico') t.style = ed.style;
+      if (ed.img) t.img = ed.img;
       if ($('td-pin').checked) t.pin = true;
       if (Object.keys(t).length) all[key] = t; else delete all[key];
     }
-    saveTapes(all);
+    if (!saveTapes(all)) { alert('Não coube no armazenamento do navegador. Use uma imagem menor ou remova a de outra fita.'); return; }
+    if (ed.fresh) { const pl = getPlays(); delete pl[key]; LS.set('plays', JSON.stringify(pl)); }
+    // se esta fita está no aparelho agora, atualiza o rótulo na hora
+    if ($('tape-name').dataset.key === key) { $('tape-name').dataset.k = all[key]?.color || ''; $('tape-name').dataset.v = String(Date.now()); }
     const box = card.parentElement; if (box) arrangeStack(box);
     $('tape-dialog').close();
   }
@@ -608,12 +652,14 @@
 
   // Coloca a fita no toca-fitas: voa da prateleira até o compartimento e desliza para dentro
   let lastTape = null, ejectedAt = 0;
-  function insertTape(name, from, key, colorOverride) {
+  function insertTape(name, from, key, colorOverride, again) {
     const tape = document.querySelector('.tape');
     ejected = false;
     $('tape-name').textContent = name;
     $('tape-name').dataset.k = colorOverride ?? ((key && getTapes()[key]?.color) || '');
-    lastTape = { name, color: $('tape-name').dataset.k };
+    $('tape-name').dataset.key = key || ''; $('tape-name').dataset.v = String(Date.now());
+    if (key && !again) { const pl = getPlays(); pl[key] = (pl[key] || 0) + 1; LS.set('plays', JSON.stringify(pl)); }
+    lastTape = { name, color: $('tape-name').dataset.k, key: key || '' };
     tape.classList.remove('empty', 'ejecting');
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const slideIn = () => { tape.classList.remove('inserting'); void tape.offsetWidth; tape.classList.add('inserting'); };
@@ -646,7 +692,7 @@
   function reinsertTape() {
     if (!ejected) return;
     const t = lastTape || { name: $('title').textContent, color: '' };
-    insertTape(t.name, null, null, t.color);
+    insertTape(t.name, null, t.key, t.color, true);
   }
 
   // Pausa de verdade: pede ao player, depois confere no Spotify e repete se o aparelho ativo ainda estiver tocando
@@ -671,7 +717,7 @@
     const tape = document.querySelector('.tape');
     // guarda a fita que está no aparelho, para colocar de volta quando o play for apertado
     const cur = $('tape-name').textContent;
-    lastTape = { name: cur && cur !== 'Sem fita' ? cur : $('title').textContent, color: $('tape-name').dataset.k || '' };
+    lastTape = { name: cur && cur !== 'Sem fita' ? cur : $('title').textContent, color: $('tape-name').dataset.k || '', key: $('tape-name').dataset.key || '' };
     ejected = true; ejectedAt = Date.now();
     pauseHard();
     tape.classList.remove('inserting'); tape.classList.add('ejecting');
@@ -831,6 +877,13 @@
     $('tape-form').onsubmit = (e) => { e.preventDefault(); saveEditor(false); };
     $('td-cancel').onclick = () => $('tape-dialog').close();
     $('td-reset').onclick = () => saveEditor(true);
+    $('td-file').onchange = (e) => { loadImageBlob(e.target.files[0]); e.target.value = ''; };
+    $('td-img-del').onclick = () => { ed.img = ''; drawImgPrev(); };
+    $('td-fresh').onclick = () => { ed.fresh = true; drawWear(); };
+    $('tape-dialog').addEventListener('paste', (e) => {
+      const it = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+      if (it) { e.preventDefault(); loadImageBlob(it.getAsFile()); }
+    });
 
     const qs = new URLSearchParams(location.search);
     if (qs.get('error')) { $('login-msg').textContent = 'Login cancelado: ' + qs.get('error'); }

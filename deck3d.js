@@ -42,6 +42,21 @@
     markFinish();
   }
 
+  // ---------------------------------------------------------------- modo noite
+  const night = { tgt: 0, cur: 0 };
+  const nightBtn = $('btn-night');
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  api.setNight = (on, save = true) => {
+    night.tgt = on ? 1 : 0;
+    document.body.classList.toggle('night', on);
+    if (metaTheme) metaTheme.setAttribute('content', on ? '#0c0912' : '#d8d8dc');
+    if (nightBtn) { nightBtn.setAttribute('aria-pressed', String(on)); nightBtn.title = on ? 'Modo noite ligado: clique para voltar ao dia' : 'Modo noite: as luzes do aparelho iluminam o corpo'; }
+    if (save) { try { localStorage.setItem('night', on ? 'on' : 'off'); } catch { /* sem armazenamento */ } }
+    if (api.wake) api.wake();
+  };
+  { let on = false; try { on = localStorage.getItem('night') === 'on'; } catch { /* sem armazenamento */ } night.cur = on ? 1 : 0; api.setNight(on, false); }
+  if (nightBtn) nightBtn.onclick = () => api.setNight(night.tgt === 0);
+
   const ro = new ResizeObserver(() => {
     if (!inited && boombox.clientWidth > 0) {
       inited = true;
@@ -204,7 +219,24 @@
     scene.add(key);
     const rimC = new T.DirectionalLight(0x58dcff, 1.5); rimC.position.set(46, 12, -30); scene.add(rimC);
     const rimP = new T.DirectionalLight(0xff5a9c, 1.2); rimP.position.set(-46, 8, -20); scene.add(rimP);
-    scene.add(new T.HemisphereLight(0xffd0ea, 0x2a1250, 0.55));
+    const hemi = new T.HemisphereLight(0xffd0ea, 0x2a1250, 0.55); scene.add(hemi);
+    // luzes do próprio aparelho (só acendem no modo noite): o dial âmbar e os dois medidores
+    const dialLight = new T.PointLight(0xffa23a, 0, 0, 2); dialLight.position.set(0, DIAL_Y - 2.5, ZF + 6); scene.add(dialLight);
+    const vuLights = [-1, 1].map((sx) => { const l = new T.PointLight(0xffd59a, 0, 0, 2); l.position.set(sx * 19.4, 4.4, ZF + 4); scene.add(l); return l; });
+    const lerpN = (a, b, k) => a + (b - a) * k;
+    function applyNight(k, pulse) {
+      key.intensity = lerpN(2.6, 0.3, k); rimC.intensity = lerpN(1.5, 0.22, k); rimP.intensity = lerpN(1.2, 0.2, k); hemi.intensity = lerpN(0.55, 0.05, k);
+      renderer.toneMappingExposure = lerpN(1.15, 1.3, k);
+      scene.environmentIntensity = 1 - 0.9 * k;
+      scene.traverse((o) => {
+        const m = o.material;
+        if (m && !Array.isArray(m) && m.envMapIntensity !== undefined && !m.isMeshBasicMaterial) {
+          if (m.userData.env0 === undefined) m.userData.env0 = m.envMapIntensity;
+          m.envMapIntensity = m.userData.env0 * (1 - 0.9 * k);
+        }
+      });
+      dialLight.intensity = k * 420 * pulse; vuLights.forEach((l) => { l.intensity = k * 150 * pulse; });
+    }
 
     // ------------------------------------------------------------ materiais
     const noiseTex = (() => {
@@ -378,7 +410,43 @@
     tape.position.set(0, DOOR_Y, TAPE_Z);
     mesh(roundedBox(CW, CH, CT, 0.55, 4), M.smoke, 0, 0, 0, tape);
     const labelCanvas = canvasOf(640, 248), labelTex = tex(labelCanvas, { aniso: 8 });
-    const label = mesh(new T.PlaneGeometry(14.4, 5.58), new T.MeshStandardMaterial({ map: labelTex, roughness: 0.6 }), 0, 2.35, CT / 2 + 0.012, tape); label.castShadow = false;
+    const labelMat = new T.MeshStandardMaterial({ map: labelTex, roughness: 0.6 });
+    const label = mesh(new T.PlaneGeometry(14.4, 5.58), labelMat, 0, 2.35, CT / 2 + 0.012, tape); label.castShadow = false;
+    // desgaste: riscos, poeira e arranhões numa película por cima da fita; some quando a fita é nova
+    const wearCanvas = canvasOf(512, 320), wearTex = tex(wearCanvas);
+    const wearMat = new T.MeshBasicMaterial({ map: wearTex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false });
+    const wearMesh = new T.Mesh(new T.PlaneGeometry(CW, CH), wearMat); wearMesh.position.set(0, 0, CT / 2 + 0.05); wearMesh.renderOrder = 1; wearMesh.visible = false; tape.add(wearMesh);
+    let wearSeed = null;
+    function paintWear(seed) {
+      const g = wearCanvas.getContext('2d'); g.clearRect(0, 0, 512, 320);
+      let s = 2166136261; for (let i = 0; i < seed.length; i++) s = Math.imul(s ^ seed.charCodeAt(i), 16777619); s = (s >>> 0) || 1;
+      const rnd = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;
+      g.lineCap = 'round';
+      for (let i = 0; i < 52; i++) {                       // riscos finos
+        const x = rnd() * 512, y = rnd() * 320, len = 18 + rnd() * 120, a = rnd() < 0.55 ? (rnd() - 0.5) * 0.6 : rnd() * Math.PI;
+        g.strokeStyle = `rgba(255,255,255,${0.16 + rnd() * 0.42})`; g.lineWidth = 0.7 + rnd() * 1.1;
+        g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a) * len * 0.5 + (rnd() - 0.5) * 8, y + Math.sin(a) * len * 0.5 + (rnd() - 0.5) * 8, x + Math.cos(a) * len, y + Math.sin(a) * len); g.stroke();
+      }
+      for (let i = 0; i < 190; i++) {                      // poeira
+        g.fillStyle = `rgba(${220 + (rnd() * 30 | 0)},${215 + (rnd() * 30 | 0)},205,${0.12 + rnd() * 0.4})`;
+        g.beginPath(); g.arc(rnd() * 512, rnd() * 320, 0.5 + rnd() * 1.5, 0, 7); g.fill();
+      }
+      for (let i = 0; i < 4; i++) {                        // marcas de dedo, bem suaves
+        const x = rnd() * 512, y = rnd() * 320, rg = g.createRadialGradient(x, y, 2, x, y, 40 + rnd() * 30);
+        rg.addColorStop(0, 'rgba(255,255,255,.09)'); rg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = rg; g.fillRect(x - 80, y - 80, 160, 160);
+      }
+      for (const [cx, cy] of [[0, 0], [512, 0], [0, 320], [512, 320]]) {   // cantos esbranquiçados
+        const rg = g.createRadialGradient(cx, cy, 0, cx, cy, 70); rg.addColorStop(0, 'rgba(255,255,255,.3)'); rg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = rg; g.fillRect(cx - 70, cy - 70, 140, 140);
+      }
+      wearTex.needsUpdate = true;
+    }
+    const paper = new T.Color(0xffffff), aged = new T.Color(0xe6d6aa);
+    function applyWear(w, seed) {
+      if (seed !== wearSeed) { wearSeed = seed; paintWear(seed || 'novo'); }
+      wearMat.opacity = Math.min(1, w * 1.15); wearMesh.visible = w > 0.01;
+      M.smoke.clearcoat = 0.8 - 0.6 * w; M.smoke.roughness = 0.32 + 0.3 * w;
+      labelMat.color.copy(paper).lerp(aged, w * 0.85);
+    }
     // janela com os carretéis
     const winShape = rrShape(12.6, 3.8, 1.8);
     mesh(new T.ShapeGeometry(winShape, 16), M.black, 0, -2.2, CT / 2 + 0.014, tape).castShadow = false;
@@ -649,6 +717,7 @@
     }
     finishHook = (k) => { applyFinish(k); dirty = true; st.sig = ''; };
     applyFinish(curFinish);
+    api.wake = () => { dirty = true; };
     // ---------- Chão: sombra projetada e sombra de contato
     {
       const floor = new T.Mesh(new T.PlaneGeometry(220, 220), new T.ShadowMaterial({ opacity: 0.42 }));
@@ -695,7 +764,7 @@
       dialTex.needsUpdate = true;
     }
     const labelG = labelCanvas.getContext('2d');
-    let coverImg = null, coverSrc = '';
+    let coverImg = null, coverSrc = '', customImg = null, customSrc = '';
     function wrapText(g, text, x, y, maxW, lh, maxLines) {
       const words = text.split(/\s+/); let line = '', n = 0;
       for (let i = 0; i < words.length; i++) {
@@ -708,7 +777,68 @@
       g.fillText(ellipsize(g, line, maxW), x, y);
     }
     const hexMix = (hex, to, t) => { const a = new T.Color(hex), b = new T.Color(to); return '#' + a.lerp(b, t).getHexString(); };
-    function drawLabel(name, color) {
+    // desenha uma imagem preenchendo o retângulo (recorta o excesso, como object-fit: cover)
+    function drawCover(g, im, x, y, w, h) {
+      const k = Math.max(w / im.width, h / im.height), sw = w / k, sh = h / k;
+      try { g.drawImage(im, (im.width - sw) / 2, (im.height - sh) / 2, sw, sh, x, y, w, h); } catch { /* sem imagem */ }
+    }
+    const artImg = () => customImg || coverImg;
+    function placeholderArt(g, ax, ay, as) {
+      const lg = g.createLinearGradient(ax, ay, ax + as, ay + as); lg.addColorStop(0, PINK); lg.addColorStop(1, PURPLE);
+      g.fillStyle = lg; g.fillRect(ax, ay, as, as);
+      g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 7; g.lineJoin = 'round';
+      rr2d(g, ax + as * 0.21, ay + as * 0.3, as * 0.58, as * 0.56 - 6, 10); g.stroke();
+      g.beginPath(); g.arc(ax + as * 0.39, ay + as * 0.51, as * 0.08, 0, 7); g.arc(ax + as * 0.61, ay + as * 0.51, as * 0.08, 0, 7); g.stroke();
+    }
+    function drawLabel(name, color, style) {
+      const g = labelG, w = 640, h = 248, c1 = color || PINK, im = artImg();
+      g.textBaseline = 'alphabetic'; g.textAlign = 'left'; g.shadowBlur = 0;
+      if (style === 'listras') {
+        g.fillStyle = c1; g.fillRect(0, 0, w, h);
+        g.fillStyle = hexMix(c1, '#ffffff', 0.35);
+        for (let x = -h; x < w; x += 64) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 32, h); g.lineTo(x + 32 + h, 0); g.lineTo(x + h, 0); g.closePath(); g.fill(); }
+        g.fillStyle = '#fffdf6'; rr2d(g, 22, 40, w - 44, 168, 16); g.fill();
+        g.fillStyle = hexMix(c1, '#000000', 0.45); g.fillRect(22, 40, w - 44, 14);
+        if (im) drawCover(g, im, 40, 66, 128, 128); else placeholderArt(g, 40, 66, 128);
+        g.fillStyle = '#1a1033'; g.font = '400 52px "Permanent Marker", "Segoe Print", cursive';
+        wrapText(g, name, 190, 112, 410, 58, 3);
+      } else if (style === 'minimal') {
+        g.fillStyle = '#f7f3ea'; g.fillRect(0, 0, w, h);
+        g.fillStyle = c1; g.beginPath(); g.arc(46, 44, 14, 0, 7); g.fill();
+        g.strokeStyle = '#1a1033'; g.lineWidth = 2; g.beginPath(); g.moveTo(30, 78); g.lineTo(w - 30, 78); g.stroke();
+        g.fillStyle = '#1a1033'; g.font = 'italic 400 54px Georgia, "Times New Roman", serif';
+        wrapText(g, name, 34, 134, 380, 58, 2);
+        g.save(); g.beginPath(); g.arc(520, 132, 82, 0, 7); g.clip();
+        if (im) drawCover(g, im, 438, 50, 164, 164); else placeholderArt(g, 438, 50, 164);
+        g.restore(); g.strokeStyle = '#1a1033'; g.lineWidth = 3; g.beginPath(); g.arc(520, 132, 82, 0, 7); g.stroke();
+        g.fillStyle = '#f7f3ea'; g.beginPath(); g.arc(520, 132, 11, 0, 7); g.fill();
+      } else if (style === 'retro') {
+        g.fillStyle = '#ecdcb2'; g.fillRect(0, 0, w, h);
+        [color || '#d8642a', hexMix(color || '#d8642a', '#000000', 0.45), '#f2b13a'].forEach((c, i) => { g.fillStyle = c; g.fillRect(0, 150 + i * 14, w, 14); });
+        g.fillStyle = '#fffaf0'; g.fillRect(28, 30, 118, 118); g.fillStyle = '#3b2a18'; g.fillRect(34, 36, 106, 90);
+        if (im) drawCover(g, im, 34, 36, 106, 90); else placeholderArt(g, 34, 36, 106);
+        g.fillStyle = '#3b2a18'; g.font = 'bold 46px "Courier New", monospace';
+        wrapText(g, name.toUpperCase(), 170, 78, 440, 52, 2);
+        g.font = 'bold 22px "Courier New", monospace'; g.fillStyle = '#7a5a30'; g.fillText('SIDE A  ·  STEREO', 170, 128);
+      } else if (style === 'neon') {
+        g.fillStyle = '#0d0820'; g.fillRect(0, 0, w, h);
+        g.strokeStyle = c1; g.lineWidth = 4; g.shadowColor = c1; g.shadowBlur = 16; rr2d(g, 14, 14, w - 28, h - 28, 20); g.stroke();
+        if (im) { g.save(); g.shadowBlur = 0; g.beginPath(); g.rect(36, 52, 150, 150); g.clip(); drawCover(g, im, 36, 52, 150, 150); g.restore(); }
+        else { g.shadowBlur = 0; placeholderArt(g, 36, 52, 150); }
+        g.shadowColor = c1; g.shadowBlur = 18; g.strokeStyle = c1; g.lineWidth = 4; g.strokeRect(36, 52, 150, 150);
+        g.fillStyle = hexMix(c1, '#ffffff', 0.7); g.font = '400 54px "Permanent Marker", "Segoe Print", cursive';
+        wrapText(g, name, 214, 112, 390, 60, 3); g.shadowBlur = 0;
+      } else if (style === 'foto' && im) {
+        drawCover(g, im, 0, 0, w, h);
+        const vg = g.createLinearGradient(0, 40, 0, h); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.78)');
+        g.fillStyle = vg; g.fillRect(0, 0, w, h);
+        g.fillStyle = c1; g.fillRect(0, 0, w, 10);
+        g.fillStyle = '#fff'; g.font = '400 54px "Permanent Marker", "Segoe Print", cursive'; g.shadowColor = 'rgba(0,0,0,.7)'; g.shadowBlur = 8;
+        wrapText(g, name, 28, 180, 584, 58, 2); g.shadowBlur = 0;
+      } else drawClassic(name, color);
+      labelTex.needsUpdate = true;
+    }
+    function drawClassic(name, color) {
       const g = labelG, w = 640, h = 248;
       g.fillStyle = '#f3eeff'; g.fillRect(0, 0, w, h);
       g.strokeStyle = 'rgba(26,16,51,.1)'; g.lineWidth = 2;
@@ -716,19 +846,18 @@
       (color ? [color, hexMix(color, '#000000', 0.4), hexMix(color, '#ffffff', 0.5)] : [PINK, PURPLE, CYAN]).forEach((c, i) => { g.fillStyle = c; g.fillRect(0, i * 11, w, 11); });
       const ax = 26, ay = 56, as = 160;
       g.fillStyle = '#1a1033'; g.fillRect(ax - 5, ay - 5, as + 10, as + 10);
-      if (coverImg) { try { g.drawImage(coverImg, ax, ay, as, as); } catch { /* sem capa */ } }
-      else {
-        const lg = g.createLinearGradient(ax, ay, ax + as, ay + as); lg.addColorStop(0, PINK); lg.addColorStop(1, PURPLE);
-        g.fillStyle = lg; g.fillRect(ax, ay, as, as);
-        g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 7; g.lineJoin = 'round';
-        rr2d(g, ax + 34, ay + 48, as - 68, as - 90, 10); g.stroke();
-        g.beginPath(); g.arc(ax + 62, ay + 82, 13, 0, 7); g.arc(ax + as - 62, ay + 82, 13, 0, 7); g.stroke();
-      }
+      if (artImg()) drawCover(g, artImg(), ax, ay, as, as); else placeholderArt(g, ax, ay, as);
       g.save(); g.translate(224, 0); g.rotate(-0.025);
       g.fillStyle = '#2a1466'; g.font = '400 56px "Permanent Marker", "Segoe Print", cursive'; g.textBaseline = 'alphabetic';
       wrapText(g, name, 0, 110, 396, 62, 3);
       g.restore();
-      labelTex.needsUpdate = true;
+    }
+    function loadCustom(src) {
+      customSrc = src; customImg = null;
+      if (!src) { st.labelDirty = true; dirty = true; return; }
+      const im = new Image();
+      im.onload = () => { if (customSrc === src) { customImg = im; st.labelDirty = true; dirty = true; } };
+      im.src = src;
     }
     function loadCover(src) {
       coverSrc = src; coverImg = null;
@@ -741,6 +870,7 @@
     // ------------------------------------------------------------ estado lido do player
     const tapeEl = document.querySelector('.tape'), doorEl = document.querySelector('.door');
     const st = { sig: '', labelDirty: true, dialKey: '' };
+    let tapeMeta = { key: null, ver: null, style: '', img: '', wear: 0 };
     let S = null;
     function readState() {
       const now = $('now');
@@ -752,7 +882,7 @@
         pausedOn: $('btn-pause').dataset.state === 'on',
         vol: Number($('vol').value) / 100, muted: $('btn-mute').classList.contains('is-muted'),
         shuffle: $('btn-shuffle').getAttribute('aria-pressed') === 'true', repeat: $('btn-repeat').dataset.mode || 'off',
-        cover: $('cover').getAttribute('src') || '', tapeName: $('tape-name').textContent, tapeColor: $('tape-name').dataset.k || '',
+        cover: $('cover').getAttribute('src') || '', tapeName: $('tape-name').textContent, tapeColor: $('tape-name').dataset.k || '', tapeKey: $('tape-name').dataset.key || '', tapeVer: $('tape-name').dataset.v || '',
         empty: tapeEl.classList.contains('empty'), hide: tapeEl.style.opacity === '0',
         drop: doorEl.classList.contains('drop-ready'),
         fastL: $('reel-l').classList.contains('fast'), fastR: $('reel-r').classList.contains('fast'),
@@ -863,7 +993,30 @@
     // Com zoom, o toca-fitas passa dos limites da caixa .boombox: por isso os gestos são ouvidos na página toda,
     // mas só valem quando começam no fundo (não no cabeçalho, na estante ou em janelas).
     const isStage = (t) => t === document.body || t === document.documentElement || t.id === 'app' || t.id === 'now' || t.id === 'bg' || t.id === 'status' || boombox.contains(t);
-    let ctl = null, drag = null, vy = 0, vx = 0, inertiaRaf = 0, tuneDrag = false;
+    let ctl = null, drag = null, vy = 0, vx = 0, inertiaRaf = 0, tuneDrag = false, scrub = null;
+    // Avançar/voltar de verdade: o ponteiro da fita corre cada vez mais rápido e a posição é enviada ao Spotify
+    // em saltos (o áudio do Spotify não pode ser acelerado, então a música "pula" como numa fita).
+    function startScrub(dir) {
+      const dur = parseTime($('t-dur').textContent);
+      if (!ctl || !dur || !S || !S.hasTrack) return;
+      ctl.scrub = true;
+      scrub = { dir, dur, pos: Number($('seek').value) / 1000, t0: performance.now(), sent: 0, iv: 0, reel: $(dir < 0 ? 'reel-l' : 'reel-r') };
+      scrub.reel.classList.add('fast'); window.Sfx?.windStart(dir);
+      let prev = performance.now();
+      scrub.iv = setInterval(() => {
+        const n = performance.now(), el = (n - scrub.t0) / 1000, speed = Math.min(90, 28 + el * 14); // segundos de música por segundo
+        scrub.pos = Math.max(0, Math.min(0.995, scrub.pos + scrub.dir * speed * ((n - prev) / 1000) / scrub.dur)); prev = n;
+        const commit = n - scrub.sent > 520;
+        setSeek(scrub.pos, commit);
+        if (commit) { scrub.sent = n; setSeek(scrub.pos, false); }
+        dirty = true;
+      }, 80);
+    }
+    function stopScrub() {
+      if (!scrub) return;
+      clearInterval(scrub.iv); scrub.reel.classList.remove('fast');
+      setSeek(scrub.pos, true); window.Sfx?.windStop(); scrub = null; dirty = true;
+    }
     document.addEventListener('pointerdown', (e) => {
       if (e.button > 0 || !isStage(e.target)) return;
       const act = hitAt(e);
@@ -871,7 +1024,11 @@
       cancelAnimationFrame(spinAnim); cancelAnimationFrame(inertiaRaf);
       if (act) {
         ctl = { act, x: e.clientX, y: e.clientY, moved: false, v0: act.type === 'knob' ? knobs[act.name].v : 0 };
-        if (act.type === 'key') { keys[act.id].held = true; window.Sfx?.key(); }
+        if (act.type === 'key') {
+          keys[act.id].held = true; window.Sfx?.key();
+          // segurar avançar/voltar: a fita corre em vez de trocar de faixa
+          if (act.id === 'btn-prev' || act.id === 'btn-next') ctl.holdT = setTimeout(() => startScrub(act.id === 'btn-next' ? 1 : -1), 420);
+        }
         if (act.type === 'switch') { switches[act.id].held = true; window.Sfx?.sw(); }
         if (act.type === 'knob' && act.name === 'tune') tuneDrag = true;
         if (act.type === 'knob') window.Sfx?.tick();
@@ -914,11 +1071,13 @@
     const release = (e, cancel) => {
       if (ctl) {
         const c = ctl; ctl = null; interacting = false;
+        clearTimeout(c.holdT);
+        if (c.scrub) stopScrub();
         if (c.act.type === 'key') { keys[c.act.id].held = false; window.Sfx?.keyUp(); }
         if (c.act.type === 'switch') switches[c.act.id].held = false;
         if (!cancel && c.act.type === 'reel') window.Sfx?.whirr();
         if (c.act.type === 'knob' && c.act.name === 'tune') { tuneDrag = false; if (c.moved) setSeek(knobs.tune.v, true); }
-        if (!cancel && c.act.type !== 'knob' && sameAct(c.act, hitAt(e))) fire(c.act.id);
+        if (!cancel && !c.scrub && c.act.type !== 'knob' && sameAct(c.act, hitAt(e))) fire(c.act.id);
         dirty = true; return;
       }
       if (drag) { drag = null; interacting = false; document.body.classList.remove('deck-grab'); inertiaRaf = requestAnimationFrame(inertia); }
@@ -978,14 +1137,22 @@
       const sig = [s.title, s.artist, s.cur, s.dur, s.cover, s.tapeName, s.tapeColor, s.empty, s.hide, s.playing, s.pausedOn, s.vol, s.muted, s.shuffle, s.repeat, s.drop, s.fastL, s.fastR, s.seek.toFixed(3), s.p.toFixed(3)].join('|');
       if (sig !== st.sig) { st.sig = sig; dirty = true; }
       if (s.cover !== coverSrc) loadCover(s.cover);
+      // dados da fita colocada: estilo do rótulo, imagem própria e desgaste (guardados no navegador pelo app.js)
+      if (s.tapeKey !== tapeMeta.key || s.tapeVer !== tapeMeta.ver) {
+        const m = (window.TapeStore && s.tapeKey && window.TapeStore.get(s.tapeKey)) || {};
+        tapeMeta = { key: s.tapeKey, ver: s.tapeVer, style: m.style || '', img: m.img || '', wear: Math.min(1, (m.plays || 0) / 25) };
+        if (tapeMeta.img !== customSrc) loadCustom(tapeMeta.img);
+        applyWear(tapeMeta.wear, s.tapeKey); st.labelDirty = true; dirty = true;
+      }
 
       // 2) painel e etiqueta
-      const ratio = tuneDrag ? knobs.tune.v : s.p;
-      const curText = tuneDrag ? fmtTime(knobs.tune.v * parseTime(s.dur)) : s.cur;
+      const tuning = tuneDrag || scrub, tuneV = scrub ? scrub.pos : knobs.tune.v;
+      const ratio = tuning ? tuneV : s.p;
+      const curText = tuning ? fmtTime(tuneV * parseTime(s.dur)) : s.cur;
       const dialKey = [s.title, s.artist, curText, s.dur, ratio.toFixed(3)].join('|');
       if (dialKey !== st.dialKey) { st.dialKey = dialKey; drawDial(s, curText, ratio); }
-      const lk = (s.tapeName !== 'Sem fita' ? s.tapeName : s.title) + '|' + (coverImg ? 1 : 0) + '|' + s.tapeColor;
-      if (lk !== st.labelKey || st.labelDirty) { st.labelKey = lk; st.labelDirty = false; drawLabel(s.tapeName !== 'Sem fita' ? s.tapeName : s.title, s.tapeColor); }
+      const lk = (s.tapeName !== 'Sem fita' ? s.tapeName : s.title) + '|' + (coverImg ? 1 : 0) + '|' + (customImg ? 1 : 0) + '|' + tapeMeta.style + '|' + s.tapeColor;
+      if (lk !== st.labelKey || st.labelDirty) { st.labelKey = lk; st.labelDirty = false; drawLabel(s.tapeName !== 'Sem fita' ? s.tapeName : s.title, s.tapeColor, tapeMeta.style); }
 
       // 3) animações
       let moving = false;
@@ -1036,7 +1203,8 @@
       const swell = 0.8 + 0.2 * Math.sin(posClock * 0.31) * Math.sin(posClock * 0.113 + 1);
       reels.forEach((r) => {
         const fast = r.side < 0 ? s.fastL : s.fastR;
-        const sp = fast ? 14 : (s.playing ? 3.7 / r.r : 0);
+        // avançando/voltando: os dois rolos correm no mesmo sentido, para o lado oposto ao de tocar quando volta
+        const sp = (s.fastL || s.fastR) ? (s.fastL ? -16 : 16) : (s.playing ? 3.7 / r.r : 0);
         if (sp) { r.hub.rotation.z -= sp * dt * (r.side < 0 ? 1 : 1); moving = true; }
         const wantR = r.side < 0 ? 1.05 + (1 - s.p) * 0.7 : 1.05 + s.p * 0.7;
         if (Math.abs(wantR - r.r) > 0.002) { r.r = lerp(r.r, wantR, Math.min(1, dt * 4)); moving = true; }
@@ -1065,6 +1233,15 @@
       // brilho do compartimento ao arrastar uma fita
       const wantGlow = s.drop ? 0.95 : 0;
       if (Math.abs(wantGlow - dropGlow) > 0.01) { dropGlow = lerp(dropGlow, wantGlow, Math.min(1, dt * 14)); glow.material.opacity = dropGlow; moving = true; }
+      // modo noite: transição suave e as luzes do aparelho pulsam de leve com a batida
+      if (!night.init) { night.init = true; applyNight(night.cur, 1); dirty = true; }
+      if (Math.abs(night.tgt - night.cur) > 0.003) { night.cur = lerp(night.cur, night.tgt, Math.min(1, dt * 3.2)); applyNight(night.cur, 1); moving = true; }
+      else if (night.cur !== night.tgt) { night.cur = night.tgt; applyNight(night.cur, 1); moving = true; }
+      if (night.cur > 0) {
+        const np = 1 + (s.playing && !s.muted ? 0.16 * kick * Math.max(0.25, s.vol) : 0);
+        dialLight.intensity = night.cur * 420 * np; vuLights.forEach((l) => { l.intensity = night.cur * 150 * np; });
+        if (s.playing) moving = true;
+      }
       // medidores de nível: dançam no ritmo enquanto toca (simulados, o Spotify não entrega o áudio)
       const live = s.playing && !s.muted && s.vol > 0;
       if (live) {

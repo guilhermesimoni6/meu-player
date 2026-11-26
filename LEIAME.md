@@ -45,7 +45,8 @@ Abra http://127.0.0.1:5173/ (precisa ser `127.0.0.1`, não `localhost`, por caus
   aparece na tela, para o arrastar-e-soltar das fitas e a animação de voo funcionarem.
 - A tela 3D cobre a janela inteira (`position: fixed`) e os gestos são ouvidos na página toda, mas só valem quando
   começam no fundo (`isStage`).
-- Guardado no navegador (localStorage): `finish` (cor do toca-fitas), `sfx` (sons), `tapes` (nome, cor e fixadas das fitas),
+- Guardado no navegador (localStorage): `finish` (cor do toca-fitas), `sfx` (sons), `night` (modo noite), `plays` (vezes que cada fita foi usada, define o desgaste),
+  `tapes` (nome, cor, estilo do rótulo, imagem e fixadas das fitas),
   e os tokens do Spotify.
 
 ## Publicar uma mudança (importante)
@@ -67,3 +68,11 @@ O GitHub Pages leva cerca de 1 minuto. Para o navegador não usar arquivos antig
 - Campo para colar link de playlist e tocar.
 - Fila de próximas músicas como pilha de fitas.
 - Ligar o 3D direto às funções do `app.js`, sem os controles escondidos.
+
+## Recursos do toca-fitas (resumo)
+
+- **Rebobinar:** segurar `<<` ou `>>` (mais de 0,4 s) corre a fita; a posição é enviada ao Spotify em saltos. Clique curto troca de faixa.
+- **Desgaste:** cada vez que uma fita é colocada, `plays[chave]` sobe; com 25 usos ela fica no desgaste máximo (riscos, poeira, plástico fosco, etiqueta amarelada).
+  Na janela de personalizar dá para zerar.
+- **Rótulo:** estilos Clássico, Listras, Minimal, Retrô, Neon e Foto, com imagem própria (colada ou escolhida; guardada reduzida no navegador).
+- **Modo noite:** botão *Noite* no cabeçalho; o dial e os medidores iluminam o corpo e pulsam levemente com a batida.

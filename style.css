@@ -396,3 +396,25 @@ body.is-dragging .boombox .door { pointer-events: auto; }
   button, input { transition: none; }
   .cas { transition: none; }
 }
+
+/* ---------- Personalizar fita: estilo e imagem do rótulo ---------- */
+.td-styles { display: flex; flex-wrap: wrap; gap: 8px; }
+.td-styles button { padding: 7px 12px; border: 2px solid rgb(255 255 255 / 28%); border-radius: 99px; background: rgb(11 6 24 / 70%); color: #fff; font: .8rem var(--mono); }
+.td-styles button[aria-checked="true"] { border-color: #00d2ff; background: rgb(0 210 255 / 18%); }
+.td-img { display: flex; align-items: center; gap: 12px; }
+.td-prev { flex: none; width: 96px; height: 62px; border: 2px dashed rgb(255 255 255 / 28%); border-radius: 8px; background: center / cover no-repeat rgb(11 6 24 / 70%); display: grid; place-items: center; font: .7rem var(--mono); color: var(--muted); }
+.td-imgbtns { display: flex; flex-wrap: wrap; gap: 8px; }
+.td-file, .td-wear button, .td-imgbtns button { padding: 8px 14px; border-radius: 99px; font: 700 .8rem var(--mono); cursor: pointer; border: 0; }
+.td-field small { font: .72rem var(--mono); color: var(--muted); }
+.td-wear { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 14px; font: .82rem var(--mono); color: var(--muted); }
+.td-wear button { color: #fff; background: rgb(255 255 255 / 10%); }
+.tape-dialog { max-height: 92vh; overflow-y: auto; }
+
+/* ---------- Modo noite ---------- */
+#bg { transition: background .6s ease; }
+body.night #bg { background: #0c0912; }
+body.night #status { color: #8d86a6; }
+body.night .brand { color: #efe9ff; }
+body.night .shelf-btn { background: rgb(255 255 255 / 12%); color: #efe9ff; border-color: rgb(255 255 255 / 18%); }
+body.night .shelf-btn:hover { background: rgb(255 255 255 / 22%); }
+body.night .shelf-btn[aria-expanded="true"] { background: var(--accent); color: var(--on-accent); }
