@@ -952,6 +952,7 @@
       } catch (e) { $('login-msg').textContent = e.message; return; }
     }
     if (LS.get('refresh_token') || LS.get('access_token')) {
+      document.documentElement.classList.remove('has-session');
       $('login').classList.add('hidden');
       $('app').classList.remove('hidden');
       $('lib-back').onclick = loadPlaylists;

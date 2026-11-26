@@ -452,3 +452,10 @@ body.night .shelf-btn[aria-expanded="true"] { background: var(--accent); color: 
 .jw-close { position: absolute; top: 16px; right: 18px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgb(255 255 255 / 14%); color: #fff; font-size: 1.6rem; line-height: 1; }
 .jw-close:hover { background: rgb(255 255 255 / 26%); }
 @media (prefers-reduced-motion: reduce) { .jw-lid { transition: none; } }
+
+/* ---------- Com login salvo, mostra "Carregando" em vez da tela de entrada enquanto o app abre ---------- */
+html.has-session #login { display: none !important; }
+html.has-session body::after {
+  content: "Carregando o Meu Player…"; position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; pointer-events: none;
+  background: #0c0912; color: #efe9ff; font: 400 1.3rem "Permanent Marker", "Segoe Print", cursive;
+}
