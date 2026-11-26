@@ -30,7 +30,7 @@ Abra http://127.0.0.1:5173/ (precisa ser `127.0.0.1`, não `localhost`, por caus
 | --- | --- |
 | `index.html` | Página, cabeçalho, estante, janela de personalizar. Os controles reais ficam escondidos em `.legacy`. |
 | `app.js` | Login (PKCE), API do Spotify, player (SDK ou controle remoto), estante de fitas, personalizar fitas. |
-| `deck3d.js` | Toca-fitas em Three.js: modelo, câmera, zoom, giro, cliques, LEDs, acabamentos (cor e madeira). |
+| `deck3d.js` | Toca-fitas em Three.js: modelo, câmera, zoom, giro, cliques, fita e cabeçote animados, medidores VU de ponteiro, acabamentos (cor e madeira). |
 | `sound.js` | Sons mecânicos gerados com Web Audio (`window.Sfx`). |
 | `style.css` | Visual da página, estante e janelas. O toca-fitas em si é desenhado no WebGL. |
 | `sw.js`, `manifest.webmanifest`, `icons/` | PWA (instalar no iPhone). |

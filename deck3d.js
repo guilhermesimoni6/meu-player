@@ -52,7 +52,7 @@
 
   // ---------------------------------------------------------------- medidas (unidades do modelo)
   const W = 62, H = 36, D = 14, R = 2.6, ZF = D / 2, TOP = H / 2, FLOOR = -H / 2 - 1;
-  const DOOR_Y = -3.5, KEY_Y = -12.9, DIAL_Y = 10.2;
+  const DOOR_Y = -3.5, KEY_Y = -12.9, DIAL_Y = 11.4;
   const PINK = '#ff3d81', PURPLE = '#7a3dff', CYAN = '#00d2ff';
   const DEG = Math.PI / 180;
 
@@ -415,6 +415,67 @@
     }
     tape.visible = false;
 
+    // ---------- Fita de verdade: sai dos rolos, passa pelos guias e pelo cabeçote
+    const TZ = CT / 2 + 0.09, GX = 6.4, GY = -4.4, HEAD_X = 0, RIB_N = 64;
+    const ribPos = new Float32Array(RIB_N * 6), ribNor = new Float32Array(RIB_N * 6);
+    for (let i = 0; i < RIB_N * 2; i++) ribNor[i * 3 + 2] = 1;
+    const ribGeo = new T.BufferGeometry();
+    ribGeo.setAttribute('position', new T.BufferAttribute(ribPos, 3));
+    ribGeo.setAttribute('normal', new T.BufferAttribute(ribNor, 3));
+    const ribIdx = []; for (let i = 0; i < RIB_N - 1; i++) { const a = i * 2; ribIdx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    ribGeo.setIndex(ribIdx);
+    const ribbon = new T.Mesh(ribGeo, new T.MeshStandardMaterial({ color: 0x8a5632, emissive: 0x2a1408, roughness: 0.3, metalness: 0.2, side: T.DoubleSide }));
+    ribbon.frustumCulled = false; tape.add(ribbon);
+    for (const sx of [-1, 1]) {
+      const post = mesh(new T.CylinderGeometry(0.27, 0.27, 0.55, 16).rotateX(Math.PI / 2), M.steel, sx * GX, GY, CT / 2 + 0.27, tape); post.castShadow = false;
+    }
+    // ponto de tangência inferior entre um rolo e um guia
+    const tangent = (cx, cy, r, px, py) => {
+      const th = Math.atan2(py - cy, px - cx), b = Math.acos(Math.min(1, r / Math.hypot(px - cx, py - cy)));
+      const a = (cy + r * Math.sin(th + b)) < (cy + r * Math.sin(th - b)) ? th + b : th - b;
+      return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+    };
+    const ribPts = new Array(7).fill(0).map(() => [0, 0]), ribLen = new Float32Array(7);
+    let ribPhase = 0;
+    function updateRibbon(bump, flutter, dtp) {
+      ribPhase += dtp;
+      const rl = reels[0].r, rr = reels[1].r;
+      ribPts[0] = tangent(-4.4, -2.2, rl, -GX, GY);
+      ribPts[1] = [-GX, GY]; ribPts[2] = [HEAD_X - 1.3, GY]; ribPts[3] = [HEAD_X, GY + bump]; ribPts[4] = [HEAD_X + 1.3, GY]; ribPts[5] = [GX, GY];
+      ribPts[6] = tangent(4.4, -2.2, rr, GX, GY);
+      let total = 0; ribLen[0] = 0;
+      for (let i = 1; i < 7; i++) { total += Math.hypot(ribPts[i][0] - ribPts[i - 1][0], ribPts[i][1] - ribPts[i - 1][1]); ribLen[i] = total; }
+      let seg = 0;
+      for (let i = 0; i < RIB_N; i++) {
+        const s = (i / (RIB_N - 1)) * total;
+        while (seg < 5 && s > ribLen[seg + 1]) seg++;
+        const a = ribPts[seg], b = ribPts[seg + 1], sl = ribLen[seg + 1] - ribLen[seg] || 1, u = (s - ribLen[seg]) / sl;
+        let dx = b[0] - a[0], dy = b[1] - a[1]; const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
+        const nx = -dy, ny = dx, env = Math.sin(Math.PI * (s / total));
+        const off = flutter * env * Math.sin(s * 2.3 - ribPhase) + flutter * 0.5 * env * Math.sin(s * 5.1 + ribPhase * 1.7);
+        const x = a[0] + (b[0] - a[0]) * u + nx * off, y = a[1] + (b[1] - a[1]) * u + ny * off, hw = 0.09;
+        ribPos.set([x + nx * hw, y + ny * hw, TZ, x - nx * hw, y - ny * hw, TZ], i * 6);
+      }
+      ribGeo.attributes.position.needsUpdate = true;
+    }
+    updateRibbon(0, 0, 0);
+
+    // ---------- Mecanismo: cabeçote, capstan e rolete de borracha (ficam no compartimento)
+    const mech = new T.Group(); mech.position.set(0, DOOR_Y, ZF + 0.08); deck.add(mech);
+    const CAP_X = 2.38, REST = { hx: 0, hy: -5.25, rx: 4.55, ry: -5.0 }, ENG = { hx: 0, hy: -4.5, rx: 3.4, ry: GY };
+    const capstan = new T.Group(); capstan.position.set(CAP_X, GY, 0); mech.add(capstan);
+    capstan.add(Object.assign(new T.Mesh(new T.CylinderGeometry(0.42, 0.42, 1.46, 32).rotateX(Math.PI / 2).translate(0, 0, 0.73), M.chrome), { castShadow: false }));
+    { const mk = new T.Mesh(new T.BoxGeometry(0.09, 0.3, 0.02), M.black); mk.position.set(0, 0.2, 1.465); capstan.add(mk); }
+    const roller = new T.Group(); roller.position.set(REST.rx, REST.ry, 0); mech.add(roller);
+    roller.add(Object.assign(new T.Mesh(new T.CylinderGeometry(0.6, 0.6, 1.1, 40).rotateX(Math.PI / 2).translate(0, 0, 1.07), M.rubber), { castShadow: false }));
+    roller.add(Object.assign(new T.Mesh(new T.CircleGeometry(0.3, 24).translate(0, 0, 1.63), M.steel)));
+    { const mk = new T.Mesh(new T.BoxGeometry(0.08, 0.22, 0.02), M.black); mk.position.set(0, 0.14, 1.635); roller.add(mk); }
+    const head = new T.Group(); head.position.set(REST.hx, REST.hy, 0); mech.add(head);
+    head.add(Object.assign(new T.Mesh(roundedBox(2.3, 0.9, 1.46, 0.22, 3).translate(0, 0, 0.73), M.steel), { castShadow: false }));
+    { const gap = new T.Mesh(new T.BoxGeometry(1.0, 0.1, 0.03), M.black); gap.position.set(0, 0.18, 1.475); head.add(gap);
+      for (const sx of [-1, 1]) { const sc = new T.Mesh(new T.CylinderGeometry(0.17, 0.17, 0.05, 16).rotateX(Math.PI / 2), M.dark); sc.position.set(sx * 0.82, -0.12, 1.47); head.add(sc); } }
+    const mechSt = { eng: 0, capA: 0 };
+
     // ---------- Chaves de aleatório e repetir
     const switches = {};
     for (const [id, x] of [['btn-shuffle', -7.2], ['btn-repeat', 7.2]]) {
@@ -426,21 +487,48 @@
       tag(g, { type: 'switch', id });
     }
 
-    // ---------- Medidores de nível (LEDs), um por canal
-    const NL = 16, LED_Y = 3.85;
-    const ledOff = new T.Color(0x1d1526), ledCol = (i) => new T.Color(i >= 14 ? 0xff3b3b : i >= 10 ? 0xffb14a : 0x3ddc6a);
-    const leds = { L: [], R: [] };
-    for (const ch of ['L', 'R']) {
-      const dir = ch === 'L' ? -1 : 1;
-      mesh(plateGeo(18.8, 2.1, 0.6, 0.4, 0.12), M.black, dir * 19.4, LED_Y, ZF - 0.02);
-      for (let i = 0; i < NL; i++) {
-        const m = new T.Mesh(new T.PlaneGeometry(0.8, 1.1), new T.MeshBasicMaterial({ color: ledOff.clone(), toneMapped: false }));
-        m.position.set(dir * (11 + i * 1.07), LED_Y, ZF + 0.4); deck.add(m);
-        leds[ch].push(m);
+    // ---------- Medidores de nível
+    // Medidores de nível (VU) de ponteiro, um por canal, com mola e amortecimento
+    const VU_W = 9.6, VU_H = 2.7, VU_Y = 4.4, VU_PIV = -2.4, VU_SWEEP = 40 * DEG;
+    const vuFace = (() => {
+      const PX = 1024 / VU_W, c = canvasOf(1024, Math.round(VU_H * PX)), g = c.getContext('2d');
+      const px = 512, py = (VU_H / 2 - VU_PIV) * PX;
+      const bg = g.createLinearGradient(0, 0, 0, c.height); bg.addColorStop(0, '#f8edc9'); bg.addColorStop(1, '#e3c98c');
+      g.fillStyle = bg; g.fillRect(0, 0, c.width, c.height);
+      const vg = g.createRadialGradient(px, 60, 40, px, 120, 620); vg.addColorStop(0, 'rgba(255,255,230,.35)'); vg.addColorStop(1, 'rgba(120,70,10,.28)');
+      g.fillStyle = vg; g.fillRect(0, 0, c.width, c.height);
+      const at = (f, r) => { const a = -VU_SWEEP + 2 * VU_SWEEP * f; return [px + Math.sin(a) * r, py - Math.cos(a) * r]; };
+      g.lineCap = 'butt';
+      // faixa vermelha (acima de 0 dB)
+      g.strokeStyle = '#c4281c'; g.lineWidth = 15; g.beginPath();
+      g.arc(px, py, 3.12 * PX, -Math.PI / 2 - VU_SWEEP + 2 * VU_SWEEP * 0.76, -Math.PI / 2 + VU_SWEEP); g.stroke();
+      g.strokeStyle = '#2a1608'; g.lineWidth = 4; g.beginPath();
+      g.arc(px, py, 3.0 * PX, -Math.PI / 2 - VU_SWEEP, -Math.PI / 2 + VU_SWEEP); g.stroke();
+      for (let i = 0; i <= 40; i++) {
+        const f = i / 40, big = i % 4 === 0, a = at(f, 3.0 * PX), b = at(f, (big ? 3.3 : 3.15) * PX);
+        g.strokeStyle = f >= 0.76 ? '#b01e14' : '#2a1608'; g.lineWidth = big ? 5 : 3;
+        g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
       }
+      g.fillStyle = '#2a1608'; g.font = 'bold 38px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      [['20', 0], ['10', 0.22], ['7', 0.38], ['5', 0.5], ['3', 0.62], ['0', 0.76], ['+3', 1]].forEach(([t, f]) => {
+        const p = at(f, 2.62 * PX); g.fillStyle = f >= 0.76 ? '#b01e14' : '#2a1608'; g.fillText(t, p[0], p[1] + 8);
+      });
+      g.fillStyle = '#2a1608'; g.font = 'bold 66px Georgia, serif'; g.fillText('VU', px, 168);
+      g.fillStyle = '#16100a'; g.fillRect(0, c.height - 0.42 * PX, c.width, 0.42 * PX);
+      return tex(c, { aniso: 8 });
+    })();
+    const vu = {};
+    const needleMat = new T.MeshBasicMaterial({ color: 0x9d1b12, toneMapped: false });
+    for (const ch of ['L', 'R']) {
+      const cx = (ch === 'L' ? -1 : 1) * 19.4;
+      mesh(plateGeo(VU_W + 0.7, VU_H + 0.4, 0.5, 0.4, 0.1), M.black, cx, VU_Y, ZF - 0.02);
+      const face = new T.Mesh(new T.PlaneGeometry(VU_W, VU_H), new T.MeshBasicMaterial({ map: vuFace, toneMapped: false })); face.position.set(cx, VU_Y, ZF + 0.42); deck.add(face);
+      const piv = new T.Group(); piv.position.set(cx, VU_Y + VU_PIV, ZF + 0.5); deck.add(piv);
+      const needle = new T.Mesh(new T.BoxGeometry(0.075, 2.05, 0.03), needleMat); needle.position.y = 1.5 + 1.025; piv.add(needle);
+      const skirt = new T.Mesh(new T.PlaneGeometry(VU_W, 0.42), M.black); skirt.position.set(cx, VU_Y - VU_H / 2 + 0.21, ZF + 0.58); deck.add(skirt);
+      const gl = new T.Mesh(new T.PlaneGeometry(VU_W + 0.7, VU_H + 0.4), M.glass); gl.position.set(cx, VU_Y, ZF + 0.72); deck.add(gl);
+      vu[ch] = { piv, x: 0, v: 0, tgt: 0, shown: 99 };
     }
-    const vu = { L: { v: 0, tgt: 0, pk: 0, shown: -1 }, R: { v: 0, tgt: 0, pk: 0, shown: -1 } };
-    let vuT = 0, vuNext = 0;
 
     // ---------- Teclas (teclado de piano, cor de creme)
     const iconCanvases = {};
@@ -879,7 +967,7 @@
     }
 
     const lerp = (a, b, k) => a + (b - a) * k;
-    let last = performance.now(), lastRender = 0, slowFrames = 0, sampled = 0, dropGlow = 0, thump = 0, reelAngle = 0, posClock = 0, trackKey = '', bpm = 110;
+    let last = performance.now(), lastRender = 0, slowFrames = 0, sampled = 0, dropGlow = 0, thump = 0, reelAngle = 0, posClock = 0, ribFlut = 0, ribShown = "", trackKey = '', bpm = 110;
     function frame(now) {
       requestAnimationFrame(frame);
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -954,6 +1042,18 @@
         if (Math.abs(wantR - r.r) > 0.002) { r.r = lerp(r.r, wantR, Math.min(1, dt * 4)); moving = true; }
         r.spool.scale.setScalar(r.r);
       });
+      // cabeçote e rolete encostam na fita ao tocar e se afastam ao pausar; a fita balança de leve
+      const wantEng = s.playing && !s.fastL && !s.fastR ? 1 : 0;
+      if (Math.abs(wantEng - mechSt.eng) > 0.002) { mechSt.eng = lerp(mechSt.eng, wantEng, Math.min(1, dt * 7)); moving = true; } else mechSt.eng = wantEng;
+      const ge = mechSt.eng * mechSt.eng * (3 - 2 * mechSt.eng);
+      head.position.set(lerp(REST.hx, ENG.hx, ge), lerp(REST.hy, ENG.hy, ge), 0);
+      roller.position.set(lerp(REST.rx, ENG.rx, ge), lerp(REST.ry, ENG.ry, ge), 0);
+      const wind = s.fastL || s.fastR ? 30 : (s.playing ? 12 : 0);
+      if (wind) { capstan.rotation.z -= wind * dt; roller.rotation.z += wind * dt * 0.7; moving = true; }
+      const flut = s.playing ? 0.022 + (s.fastL || s.fastR ? 0.03 : 0) : 0;
+      const ribSig = ge.toFixed(3) + '|' + reels[0].r.toFixed(3) + '|' + reels[1].r.toFixed(3);
+      if (tape.visible && (flut || ribFlut || ribSig !== ribShown)) { updateRibbon(0.3 * ge, flut, dt * (wind ? 9 : 0)); ribShown = ribSig; moving = true; }
+      ribFlut = flut;
       // alto-falantes pulsam com a música
       if (s.playing) {
         thump = 1; moving = true;
@@ -975,16 +1075,18 @@
         }
       } else { vu.L.tgt = 0; vu.R.tgt = 0; }
       for (const ch of ['L', 'R']) {
+        // ponteiro preso a uma mola: sobe rápido, passa um pouco do ponto e assenta (subamortecido)
         const u = vu[ch];
-        u.v += (u.tgt - u.v) * Math.min(1, dt * (u.tgt > u.v ? 26 : 7));
-        u.pk = Math.max(u.v, u.pk - dt * 0.4);
-        if (u.v < 0.004 && !u.tgt) u.v = 0;
-        const lit = Math.round(u.v * NL), pk = Math.round(u.pk * NL) - 1, sig2 = lit * 100 + pk;
-        if (sig2 !== u.shown) {
-          u.shown = sig2; moving = true;
-          leds[ch].forEach((m, i) => m.material.color.copy(i < lit || i === pk ? ledCol(i) : ledOff));
+        let rem = Math.min(dt, 0.1);
+        while (rem > 0) {
+          const h = Math.min(rem, 1 / 120); rem -= h;
+          u.v += (250 * (u.tgt - u.x) - 20 * u.v) * h;
+          u.x += u.v * h;
+          if (u.x < 0) { u.x = 0; if (u.v < 0) u.v *= -0.25; }   // batente no zero
+          if (u.x > 1.04) { u.x = 1.04; if (u.v > 0) u.v *= -0.25; } // batente no fim da escala
         }
-        if (u.v > 0 || u.pk > 0.01) moving = true;
+        if (Math.abs(u.x - u.shown) > 0.0004) { u.shown = u.x; u.piv.rotation.z = -(-VU_SWEEP + 2 * VU_SWEEP * u.x); }
+        if (Math.abs(u.x - u.tgt) > 0.001 || Math.abs(u.v) > 0.01) moving = true; else { u.x = u.tgt; u.v = 0; }
       }
       if (moving || tapeAnim.mode) dirty = true;
 
