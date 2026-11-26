@@ -78,6 +78,5 @@ O GitHub Pages leva cerca de 1 minuto. Para o navegador não usar arquivos antig
 - **Modo noite:** botão *Noite* no cabeçalho; o dial e os medidores iluminam o corpo e pulsam levemente com a batida.
 - **Antena telescópica:** arrastar para cima estica, para os lados inclina (guardado em `antenna`). O chiado de rádio (`Sfx.hiss`) some com ela esticada e bem inclinada.
 - **Caneta do nome:** Marcador, Esferográfica ou Lápis por fita (`pen` em `tapes`), com leve borrão. Fontes Caveat e Reenie Beanie vêm do Google Fonts.
-- **Rolo e contador:** o rolo mostra voltas de fita e o contador mecânico de 4 rodinhas conta a fita; tocar nele zera.
 - **Caixinha:** na estante, clicar na lombada abre a caixinha (`openCase` em `app.js`); clicar na fita dentro dela coloca no aparelho. Arrastar a lombada continua funcionando.
 - **Andamento real (ReccoBeats):** o BPM e a energia de cada faixa vêm de `api.reccobeats.com` (grátis, sem chave, só o ID público da música é enviado) e ficam em `tempo` no navegador. Sem dados, usa o ritmo simulado por faixa. Cobre só parte das músicas e não informa onde cai cada batida.

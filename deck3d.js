@@ -625,28 +625,6 @@
       vu[ch] = { piv, x: 0, v: 0, tgt: 0, shown: 99 };
     }
 
-    // ---------- Contador mecânico de fita (4 rodinhas de números); tocar nele zera
-    const CNT_N = 4, cDigits = [];
-    {
-      const dc = canvasOf(64, 640), dg = dc.getContext('2d');
-      dg.fillStyle = '#efe6cf'; dg.fillRect(0, 0, 64, 640);
-      dg.fillStyle = '#17110c'; dg.font = 'bold 50px "Courier New", monospace'; dg.textAlign = 'center'; dg.textBaseline = 'middle';
-      for (let i = 0; i < 10; i++) dg.fillText(String(i), 32, i * 64 + 35);
-      const dtex = tex(dc, { repeat: true, aniso: 8 }); dtex.repeat.set(1, 0.1);
-      const cx0 = 0, cy = 4.35, DW = 0.86, GAP = 0.1, tot = CNT_N * DW + (CNT_N - 1) * GAP;
-      const frame = mesh(plateGeo(tot + 0.9, 1.9, 0.3, 0.4, 0.08), M.black, cx0, cy, ZF - 0.02); tag(frame, { type: 'counter' });
-      for (let i = 0; i < CNT_N; i++) {
-        const t = dtex.clone(); t.needsUpdate = true;
-        const m = new T.Mesh(new T.PlaneGeometry(DW, 1.3), new T.MeshBasicMaterial({ map: t, toneMapped: false }));
-        m.position.set(cx0 - tot / 2 + DW / 2 + i * (DW + GAP), cy, ZF + 0.42); deck.add(m); tag(m, { type: 'counter' });
-        cDigits.push({ t, shown: -1 });
-      }
-      const sh = canvasOf(8, 64), sg = sh.getContext('2d'), gr = sg.createLinearGradient(0, 0, 0, 64);
-      gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(0.3, 'rgba(0,0,0,0)'); gr.addColorStop(0.7, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.55)'); sg.fillStyle = gr; sg.fillRect(0, 0, 8, 64);
-      const shade = new T.Mesh(new T.PlaneGeometry(tot, 1.3), new T.MeshBasicMaterial({ map: tex(sh), transparent: true, depthWrite: false, toneMapped: false })); shade.position.set(cx0, cy, ZF + 0.46); deck.add(shade);
-      const cg = new T.Mesh(new T.PlaneGeometry(tot + 0.5, 1.5), M.glass); cg.position.set(cx0, cy, ZF + 0.6); deck.add(cg); tag(cg, { type: 'counter' });
-    }
-    let counterZero = 0;
 
 
     // ---------- Antena telescópica: puxar para cima estica, arrastar de lado inclina
@@ -1122,7 +1100,6 @@
           if (act.id === 'btn-prev' || act.id === 'btn-next') ctl.holdT = setTimeout(() => startScrub(act.id === 'btn-next' ? 1 : -1), 420);
         }
         if (act.type === 'switch') { switches[act.id].held = true; window.Sfx?.sw(); }
-        if (act.type === 'counter') { counterZero = posClock; window.Sfx?.key(); }
         if (act.type === 'antenna') { ctl.e0 = antSt.e; ctl.t0 = antSt.tilt; ctl.tickAt = antSt.e; }
         if (act.type === 'knob' && act.name === 'tune') tuneDrag = true;
         if (act.type === 'knob') window.Sfx?.tick();
@@ -1345,15 +1322,6 @@
         const np = 1 + (s.playing && !s.muted ? 0.16 * kick * Math.max(0.25, s.vol) : 0), nk = night.cur;
         dialLight.intensity = (nk * 420) * np; vuLights.forEach((l) => { l.intensity = (nk * 150) * np; });
         if (nk > 0 && s.playing) moving = true;
-      }
-      // contador mecânico: uma contagem a cada ~1,1 s de fita; cada rodinha gira na vez (a de cima só rola quando a de baixo passa do 9)
-      {
-        const cv = Math.max(0, (posClock - counterZero) / 1.1) % 10000;
-        for (let i = 0; i < CNT_N; i++) {
-          const p = Math.pow(10, i), base = Math.floor(cv / p) % 10, low = i ? (cv / (p / 10)) % 10 : 0;
-          const x = i === 0 ? cv % 10 : base + (low >= 9 ? low - 9 : 0), dg = cDigits[i];
-          if (Math.abs(x - dg.shown) > 0.004) { dg.shown = x; dg.t.offset.y = 0.9 - x * 0.1; }
-        }
       }
       // antena: parada (não balança com o grave); o chiado de rádio cai com ela esticada
       {
