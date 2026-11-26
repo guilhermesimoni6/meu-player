@@ -958,6 +958,8 @@
       loadPlaylists();
       if (IOS) startRemote();
     }
+    // pede ao navegador para não apagar os dados do app (login e personalizações) quando faltar espaço
+    try { navigator.storage?.persist?.().catch(() => {}); } catch { /* sem suporte */ }
     // Instalável como app (PWA): só registra onde o navegador permite (HTTPS ou localhost)
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))) {
       navigator.serviceWorker.register('sw.js').catch(() => {});
