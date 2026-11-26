@@ -1330,9 +1330,9 @@
           if (Math.abs(x - dg.shown) > 0.004) { dg.shown = x; dg.t.offset.y = 0.9 - x * 0.1; }
         }
       }
-      // antena: balança no ritmo do grave (mais quando está esticada e com o volume alto) e o chiado de rádio cai com ela esticada
+      // antena: parada (não balança com o grave); o chiado de rádio cai com ela esticada
       {
-        const beatSign = Math.floor(beat) % 2 ? 1 : -1, drive = s.playing && !s.muted ? beatSign * kick * 0.07 * s.vol * (0.4 + antSt.e) : 0;
+        const beatSign = Math.floor(beat) % 2 ? 1 : -1, drive = 0;
         let rem = Math.min(dt, 0.1);
         while (rem > 0) { const h = Math.min(rem, 1 / 120); rem -= h; antSt.v += (120 * (drive - antSt.w) - 6 * antSt.v) * h; antSt.w += antSt.v * h; }
         if (Math.abs(antSt.w) < 0.0004 && Math.abs(antSt.v) < 0.004 && !drive) { antSt.w = 0; antSt.v = 0; } else moving = true;
